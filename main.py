@@ -59,20 +59,17 @@ class GridMaker(ctk.CTk):
         top = ctk.CTkToplevel(self)
         top.title("Donate ❤")
         top.resizable(False, False)
-        top.withdraw()
 
         # set icon safely for CTk
         top.iconphoto(False, self.iconpath)
         top.wm_iconbitmap()
 
         # Center the window
-        top.update_idletasks()
         width = 500
         height = 300
         x = (top.winfo_screenwidth() // 2) - (width // 2)
         y = (top.winfo_screenheight() // 2) - (height // 2)
         top.geometry(f"{width}x{height}+{x}+{y}")
-        top.deiconify()
 
         # Make modal
         top.grab_set()
@@ -81,10 +78,14 @@ class GridMaker(ctk.CTk):
         # ==== Layout starts ====
 
         # Donate image (clickable)
-        donate_img = ImageTk.PhotoImage(file=self.resource_path(os.path.join("assets", "donate.png")))
+        image_path = self.resource_path(os.path.join("assets", "donate.png"))
+        img = Image.open(image_path)
+        width, height = img.size
+        donate_img = ctk.CTkImage(
+            light_image=Image.open(image_path), dark_image=Image.open(image_path), size=(width, height)
+        )
         donate_button = ctk.CTkLabel(top, image=donate_img, text="", cursor="hand2")
         donate_button.grid(row=0, column=0, columnspan=2, pady=(30, 20))
-        donate_button.image = donate_img
 
         def open_link(event):
             webbrowser.open_new("http://www.coffeete.ir/Titan")
