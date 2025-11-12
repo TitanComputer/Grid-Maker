@@ -1,5 +1,13 @@
 import os
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageTk
+import customtkinter as ctk
+from customtkinter import filedialog
+import os
+from tkinter import messagebox
+import threading
+
+
+APP_VERSION = "1.0.0"
 
 
 def draw_grid(image_path, output_path, cols=240, rows=340, line_color=(0, 0, 0)):
