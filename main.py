@@ -5,45 +5,137 @@ from customtkinter import filedialog
 import os
 from tkinter import messagebox
 import threading
+from idlelib.tooltip import Hovertip
+import webbrowser
 
 
 APP_VERSION = "1.0.0"
 
 
-def draw_grid(image_path, output_path, cols=240, rows=340, line_color=(0, 0, 0)):
-    img = Image.open(image_path).convert("RGB")
-    draw = ImageDraw.Draw(img)
-    width, height = img.size
+class GridMaker(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title(f"Grid Maker v{APP_VERSION}")
+        self.iconpath = ImageTk.PhotoImage(file=self.resource_path(os.path.join("assets", "icon.png")))
+        self.wm_iconbitmap()
+        self.iconphoto(False, self.iconpath)
+        self.heart_image = ImageTk.PhotoImage(file=self.resource_path(os.path.join("assets", "heart.png")))
+        self.update_idletasks()
+        width = 500
+        height = 500
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.resizable(False, False)
+        ctk.set_appearance_mode("dark")
 
-    # Draw vertical lines
-    col_width = width / cols
-    for i in range(1, cols):
-        x = int(i * col_width)
-        draw.line([(x, 0), (x, height)], fill=line_color, width=1)
+    def resource_path(self, relative_path):
+        temp_dir = os.path.dirname(__file__)
+        return os.path.join(temp_dir, relative_path)
 
-    # Draw horizontal lines
-    row_height = height / rows
-    for j in range(1, rows):
-        y = int(j * row_height)
-        draw.line([(0, y), (width, y)], fill=line_color, width=1)
+    def start_process_threaded(self):
+        threading.Thread(target=self.start_process, daemon=True).start()
 
-    img.save(output_path)
+    def start_process(self):
+        pass
 
+    def donate(self):
+        """
+        Opens a donation window with options to support the project.
 
-def main():
-    input_dir = os.getcwd()
-    output_dir = os.path.join(input_dir, "output")
-    os.makedirs(output_dir, exist_ok=True)
+        This method creates a top-level window allowing users to make a donation.
+        The window includes a clickable donation image, a label for a USDT (Tether)
+        wallet address, a read-only entry field displaying the wallet address, and
+        a 'Copy' button to copy the wallet address to the clipboard. The donation
+        image opens a link when clicked, and the window is centered on the screen
+        with a fixed size.
 
-    for filename in os.listdir(input_dir):
-        if filename.lower().endswith((".jpg", ".png")):
-            input_path = os.path.join(input_dir, filename)
-            output_path = os.path.join(output_dir, filename)
-            draw_grid(input_path, output_path)
-            print(f"Processed: {filename}")
+        The method also ensures the window behaves modally and provides feedback
+        via a tooltip when the wallet address is copied.
+        """
 
-    print("Done. Check the 'output' folder.")
+        top = ctk.CTkToplevel(self)
+        top.title("Donate ❤")
+        top.resizable(False, False)
+        top.withdraw()
+
+        # set icon safely for CTk
+        top.iconphoto(False, self.iconpath)
+        top.wm_iconbitmap()
+
+        # Center the window
+        top.update_idletasks()
+        width = 500
+        height = 300
+        x = (top.winfo_screenwidth() // 2) - (width // 2)
+        y = (top.winfo_screenheight() // 2) - (height // 2)
+        top.geometry(f"{width}x{height}+{x}+{y}")
+        top.deiconify()
+
+        # Make modal
+        top.grab_set()
+        top.transient(self)
+
+        # ==== Layout starts ====
+
+        # Donate image (clickable)
+        donate_img = ImageTk.PhotoImage(file=self.resource_path(os.path.join("assets", "donate.png")))
+        donate_button = ctk.CTkLabel(top, image=donate_img, text="", cursor="hand2")
+        donate_button.grid(row=0, column=0, columnspan=2, pady=(30, 20))
+        donate_button.image = donate_img
+
+        def open_link(event):
+            webbrowser.open_new("http://www.coffeete.ir/Titan")
+
+        donate_button.bind("<Button-1>", open_link)
+
+        # USDT Label
+        usdt_label = ctk.CTkLabel(top, text="USDT (Tether) – TRC20 Wallet Address :", font=("Segoe UI", 14, "bold"))
+        usdt_label.grid(row=1, column=0, columnspan=2, pady=(30, 5), sticky="w", padx=20)
+
+        # Entry field (readonly)
+        wallet_address = "TGoKk5zD3BMSGbmzHnD19m9YLpH5ZP8nQe"
+        wallet_entry = ctk.CTkEntry(top, width=300)
+        wallet_entry.insert(0, wallet_address)
+        wallet_entry.configure(state="readonly")
+        wallet_entry.grid(row=2, column=0, padx=(20, 10), pady=5, sticky="ew")
+
+        # Copy button
+        copy_btn = ctk.CTkButton(top, text="Copy", width=80)
+        copy_btn.grid(row=2, column=1, padx=(0, 20), pady=5, sticky="w")
+
+        tooltip = None
+
+        def copy_wallet():
+            nonlocal tooltip
+            self.clipboard_clear()
+            self.clipboard_append(wallet_address)
+            self.update()
+
+            # Remove old tooltip if exists
+            if tooltip:
+                tooltip.hidetip()
+                tooltip = None
+
+            tooltip = Hovertip(copy_btn, "Copied to clipboard!")
+            tooltip.showtip()
+
+            # Hide after 2 seconds
+            def hide_tip():
+                if tooltip:
+                    tooltip.hidetip()
+
+            top.after(2000, hide_tip)
+
+        copy_btn.configure(command=copy_wallet)
+
+        # Make the first column expand
+        top.grid_columnconfigure(0, weight=1)
 
 
 if __name__ == "__main__":
-    main()
+    app = GridMaker()
+    ctk.CTkButton(app, text="Donate", command=app.donate).pack(pady=40)
+    app.mainloop()
