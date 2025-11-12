@@ -59,10 +59,10 @@ class GridMaker(ctk.CTk):
         top = ctk.CTkToplevel(self)
         top.title("Donate ❤")
         top.resizable(False, False)
+        top.withdraw()
 
         # set icon safely for CTk
-        top.iconphoto(False, self.iconpath)
-        top.wm_iconbitmap()
+        top.after(250, lambda: top.iconphoto(False, self.heart_image))
 
         # Center the window
         width = 500
@@ -134,9 +134,9 @@ class GridMaker(ctk.CTk):
 
         # Make the first column expand
         top.grid_columnconfigure(0, weight=1)
+        top.after(200, top.deiconify)
 
 
 if __name__ == "__main__":
     app = GridMaker()
-    ctk.CTkButton(app, text="Donate", command=app.donate).pack(pady=40)
     app.mainloop()
