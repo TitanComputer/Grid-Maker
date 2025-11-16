@@ -93,7 +93,15 @@ class GridMaker(ctk.CTk):
         temp_dir = os.path.dirname(__file__)
         try:
             self.iconpath = ImageTk.PhotoImage(file=os.path.join(temp_dir, "assets", "icon.png"))
-            self.heart_image = ImageTk.PhotoImage(file=os.path.join(temp_dir, "assets", "heart.png"))
+            heart_path = os.path.join(temp_dir, "assets", "heart.png")
+
+            # For CTk widgets (scaled, recommended)
+            self.heart_image = ctk.CTkImage(
+                light_image=Image.open(heart_path), dark_image=Image.open(heart_path), size=(32, 32)
+            )
+
+            # For window icon (must be PhotoImage)
+            self.heart_icon = ImageTk.PhotoImage(file=heart_path)
             self.wm_iconbitmap()
             self.iconphoto(False, self.iconpath)
         except Exception:
@@ -843,8 +851,8 @@ class GridMaker(ctk.CTk):
         top.withdraw()
 
         # Set icon safely for CTk
-        if self.heart_image:
-            top.after(250, lambda: top.iconphoto(False, self.heart_image))
+        if self.heart_icon:
+            top.after(250, lambda: top.iconphoto(False, self.heart_icon))
 
         # Center the window
         width = 500
