@@ -309,14 +309,31 @@ class GridMaker(ctk.CTk):
         if self.preview_index < len(self.preview_files) - 1:
             self.preview_index += 1
             self._render_preview_image()
+            self._update_preview_nav_buttons()
 
     def _preview_prev(self):
         if self.preview_index > 0:
             self.preview_index -= 1
             self._render_preview_image()
+            self._update_preview_nav_buttons()
 
     def _preview_restyle(self):
         self._render_preview_image()
+
+    def _update_preview_nav_buttons(self):
+        total = len(self.preview_files)
+
+        # Disable "Previous" if at first image
+        if self.preview_index <= 0:
+            self.prev_btn.configure(state="disabled")
+        else:
+            self.prev_btn.configure(state="normal")
+
+        # Disable "Next" if at last image
+        if self.preview_index >= total - 1:
+            self.next_btn.configure(state="disabled")
+        else:
+            self.next_btn.configure(state="normal")
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
@@ -379,17 +396,18 @@ class GridMaker(ctk.CTk):
         buttons_frame = ctk.CTkFrame(top)
         buttons_frame.pack(fill="x", pady=5)
 
-        prev_btn = ctk.CTkButton(buttons_frame, text="Previous", width=120, command=self._preview_prev)
-        prev_btn.pack(side="left", padx=10, pady=5)
+        self.prev_btn = ctk.CTkButton(buttons_frame, text="Previous", width=120, command=self._preview_prev)
+        self.prev_btn.pack(side="left", padx=10, pady=5)
 
-        restyle_btn = ctk.CTkButton(buttons_frame, text="Restyle", width=120, command=self._preview_restyle)
-        restyle_btn.pack(side="left", padx=10, pady=5)
+        self.restyle_btn = ctk.CTkButton(buttons_frame, text="Restyle", width=120, command=self._preview_restyle)
+        self.restyle_btn.pack(side="left", padx=10, pady=5)
 
-        next_btn = ctk.CTkButton(buttons_frame, text="Next", width=120, command=self._preview_next)
-        next_btn.pack(side="left", padx=10, pady=5)
+        self.next_btn = ctk.CTkButton(buttons_frame, text="Next", width=120, command=self._preview_next)
+        self.next_btn.pack(side="left", padx=10, pady=5)
 
         # First render
-        self._render_preview_image()
+        top.after(250, self._render_preview_image)
+        self._update_preview_nav_buttons()
         top.after(200, top.deiconify)
 
     # --- UI Creation and Layout Methods ---
@@ -518,14 +536,14 @@ class GridMaker(ctk.CTk):
         # Row 10 & 11: Grid Row Count Slider
         # ------------------------------
         ctk.CTkLabel(
-            self.main_frame, text="6. Grid Row Count (Horizontal Lines, 50-400):", font=ctk.CTkFont(weight="bold")
+            self.main_frame, text="6. Grid Row Count (Horizontal Lines, 10-400):", font=ctk.CTkFont(weight="bold")
         ).grid(row=10, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
         self.rows_slider = self._create_slider(
             frame=self.main_frame,
             row=11,
             key="grid_rows",
             slider_var=self.settings["grid_rows"],
-            from_=50,
+            from_=10,
             to=400,
             format_spec="{:.0f}",
         )
@@ -534,14 +552,14 @@ class GridMaker(ctk.CTk):
         # Row 12 & 13: Grid Column Count Slider
         # ------------------------------
         ctk.CTkLabel(
-            self.main_frame, text="7. Grid Column Count (Vertical Lines, 50-400):", font=ctk.CTkFont(weight="bold")
+            self.main_frame, text="7. Grid Column Count (Vertical Lines, 10-400):", font=ctk.CTkFont(weight="bold")
         ).grid(row=12, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
         self.cols_slider = self._create_slider(
             frame=self.main_frame,
             row=13,
             key="grid_cols",
             slider_var=self.settings["grid_cols"],
-            from_=50,
+            from_=10,
             to=400,
             format_spec="{:.0f}",
         )
