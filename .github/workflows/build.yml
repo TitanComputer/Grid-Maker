@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
       - name: Check files
         run: dir assets
 
@@ -69,6 +69,7 @@ jobs:
             --include-data-dir=assets=assets \
             --python-flag=no_site,no_asserts,no_docstrings \
             --onefile \
+            --onefile-no-compression \
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
