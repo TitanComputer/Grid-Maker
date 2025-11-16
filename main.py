@@ -20,7 +20,7 @@ CONFIG_FILENAME = "config.json"
 DEFAULT_CONFIG = {
     "app_name": APP_NAME,
     "app_version": APP_VERSION,
-    "folder_path": os.path.expanduser("~/Documents"),
+    "folder_path": "",
     "h_padding": 0,
     "v_padding": 0,
     "zoom_factor": 1.0,
@@ -220,14 +220,26 @@ class GridMaker(ctk.CTk):
         # Row 0 & 1: Folder Selection
         # ------------------------------
         # Added padx=20 to the internal elements to create the desired margin within the frame
-        ctk.CTkLabel(self.main_frame, text="1. Select Input Folder:", font=ctk.CTkFont(weight="bold")).grid(
-            row=0, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
-        )
+        ctk.CTkLabel(
+            self.main_frame,
+            text="1. Select Input Folder (Must Contain PNG, JPG, AVIF, WEBP):",
+            font=ctk.CTkFont(weight="bold"),
+        ).grid(row=0, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
 
         self.folder_entry = ctk.CTkEntry(
-            self.main_frame, textvariable=self.folder_path_var, state="readonly", width=350
+            self.main_frame,
+            width=350,
+            placeholder_text="Select a folder containing supported image formats",
         )
+        self.folder_entry.configure(state="readonly")
         self.folder_entry.grid(row=1, column=0, padx=(20, 5), sticky="ew")
+
+        # NEW: apply last saved folder if it exists
+        if self.folder_path_var.get() != "":
+            self.folder_entry.configure(state="normal")
+            self.folder_entry.delete(0, "end")
+            self.folder_entry.insert(0, self.folder_path_var.get())
+            self.folder_entry.configure(state="readonly")
 
         self.browse_button = ctk.CTkButton(self.main_frame, text="Browse", command=self._browse_folder)
         self.browse_button.grid(row=1, column=1, padx=(5, 20), sticky="e")
@@ -490,12 +502,25 @@ class GridMaker(ctk.CTk):
     def _browse_folder(self):
         """Opens a dialog to select the input folder and updates the path variable."""
         initial_dir = (
-            self.folder_path_var.get() if os.path.isdir(self.folder_path_var.get()) else DEFAULT_CONFIG["folder_path"]
+            self.folder_path_var.get()
+            if os.path.isdir(self.folder_path_var.get())
+            else os.path.expanduser("~/Documents")
         )
 
         folder_selected = filedialog.askdirectory(initialdir=initial_dir, title="Select Folder Containing Images")
         if folder_selected:
+            # update the variable used elsewhere in code
             self.folder_path_var.set(folder_selected)
+            # update visible entry text so placeholder is replaced
+            try:
+                self.folder_entry.configure(state="normal")
+                self.folder_entry.delete(0, "end")
+                self.folder_entry.insert(0, folder_selected)
+                # make it readonly so user doesn't accidentally edit
+                self.folder_entry.configure(state="readonly")
+            except Exception:
+                # fallback: if CTkEntry API differs, just set the variable
+                pass
 
     def _pick_color(self):
         """Opens a color chooser dialog and updates the grid color variable and display."""
@@ -608,7 +633,7 @@ class GridMaker(ctk.CTk):
         self.after(0, lambda: self._set_ui_state("disabled"))
 
         folder_path = self.folder_path_var.get()
-        output_dir = os.path.join(folder_path, "output")
+        output_dir = os.path.normpath(os.path.join(folder_path, "output"))
         os.makedirs(output_dir, exist_ok=True)
 
         # Supported image formats
@@ -701,7 +726,13 @@ class GridMaker(ctk.CTk):
             # Ensure progress bar reaches 1.0 and label says 100%
             self.after(0, lambda: [self.progress_bar.set(1.0), self.progress_text_var.set("100%")])
             # Show success message as requested
-            self.after(0, lambda: messagebox.showinfo("Success", "All images processed successfully!"))
+            self.after(
+                0,
+                lambda: messagebox.showinfo(
+                    "Success",
+                    f"All images processed successfully!\n\n{self.total_files} files were saved to:\n{os.path.normpath(os.path.join(self.folder_path_var.get(), 'output'))}",
+                ),
+            )
         else:
             # Ensure progress bar remains at current state or 0 if started and immediately stopped
             if self.progress_bar.get() < 1.0:
