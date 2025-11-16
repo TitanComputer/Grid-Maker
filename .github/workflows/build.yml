@@ -62,8 +62,8 @@ jobs:
             --enable-plugin=tk-inter \
             --windows-console-mode=disable \
             --follow-imports \
-            --windows-icon-from-ico="icon.png" \
-            --include-data-files=icon.png=icon.png \
+            --windows-icon-from-ico="assets/icon.png" \
+            --include-data-dir=assets=assets \
             --python-flag=no_site,no_asserts,no_docstrings \
             --onefile \
             --standalone \
