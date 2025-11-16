@@ -12,7 +12,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -382,19 +382,44 @@ class GridMaker(ctk.CTk):
         if self.iconpath:
             top.after(200, lambda: top.iconphoto(False, self.iconpath))
 
-        # --- Position preview window ---
+        # --- Get main window size and position ---
         self.update_idletasks()
-        main_x = self.winfo_x()
-        main_y = self.winfo_y()
         main_w = self.winfo_width()
         main_h = self.winfo_height()
 
+        # --- Preview window size ---
         preview_w = 700
         preview_h = main_h
+
+        # --- Get screen size ---
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+
+        # --- Calculate top-left coordinates to center both windows together ---
+        total_w = main_w + preview_w
+        total_h = max(main_h, preview_h)
+
+        center_x = (screen_w - total_w) // 2
+        center_y = (screen_h - total_h) // 2
+
+        # --- Set positions ---
+        main_x = center_x
+        main_y = center_y
         preview_x = main_x + main_w
         preview_y = main_y
 
+        # --- Apply geometry ---
+        self.geometry(f"{main_w}x{main_h}+{main_x}+{main_y}")
         top.geometry(f"{preview_w}x{preview_h}+{preview_x}+{preview_y}")
+
+        # --- Call center_window when preview window is closed ---
+        def on_preview_close():
+            if hasattr(self, "center_window"):
+                self.center_window()
+                self.update_idletasks()
+            top.destroy()
+
+        top.protocol("WM_DELETE_WINDOW", on_preview_close)
 
         # --- Scan folder ---
         folder = self.folder_path_var.get()
