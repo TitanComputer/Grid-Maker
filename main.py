@@ -2,8 +2,6 @@ import os
 import sys
 import json
 from PIL import Image, ImageDraw, ImageTk
-
-# import pillow_avif
 import customtkinter as ctk
 from customtkinter import filedialog
 import tkinter as tk
@@ -113,14 +111,7 @@ class GridMaker(ctk.CTk):
             self.heart_image = None
             print("Warning: Could not load application icons.")
 
-        self.update_idletasks()
-        width = 500
-        height = 750
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        x = (screen_width // 2) - (width // 2)
-        y = (screen_height // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.center_window()
         self.resizable(False, False)
         ctk.set_appearance_mode("dark")
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -156,6 +147,23 @@ class GridMaker(ctk.CTk):
             self.lock_thread.start()
             print("Lock refresh started.")
         # --- Lock Updater Control END ---
+
+    def center_window(self):
+        """
+        Centers the main application window on the screen.
+
+        This function calculates the appropriate x and y coordinates such that
+        the window is positioned at the center of the user's screen. It sets the
+        window's geometry using a fixed width and height.
+        """
+        self.update_idletasks()
+        width = 500
+        height = 750
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
 
     def resource_path(self, relative_path):
         """Get absolute path to resource, needed for PyInstaller."""
