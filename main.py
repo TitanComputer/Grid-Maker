@@ -337,6 +337,7 @@ class GridMaker(ctk.CTk):
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
+        # prevent duplicate preview window
         if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
             try:
                 self.preview_window.lift()
@@ -344,18 +345,18 @@ class GridMaker(ctk.CTk):
             except:
                 pass
             return
-        # Create preview window
+
+        # --- Create preview window ---
         self.preview_window = ctk.CTkToplevel(self)
         top = self.preview_window
         top.withdraw()
         top.title("Preview")
         top.resizable(False, False)
 
-        # Set icon safely for CTk
         if self.iconpath:
-            top.after(250, lambda: top.iconphoto(False, self.iconpath))
+            top.after(200, lambda: top.iconphoto(False, self.iconpath))
 
-        # Position preview next to main window
+        # --- Position preview window ---
         self.update_idletasks()
         main_x = self.winfo_x()
         main_y = self.winfo_y()
@@ -369,7 +370,7 @@ class GridMaker(ctk.CTk):
 
         top.geometry(f"{preview_w}x{preview_h}+{preview_x}+{preview_y}")
 
-        # Scan folder for previewable images
+        # --- Scan folder ---
         folder = self.folder_path_var.get()
         supported = (".png", ".jpg", ".jpeg", ".avif", ".webp")
         self.preview_files = [
@@ -385,29 +386,77 @@ class GridMaker(ctk.CTk):
 
         self.preview_index = 0
 
-        # Scrollable area for image
-        self.preview_scroll = ctk.CTkScrollableFrame(top)
-        self.preview_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        # =============================================================
+        #   SCROLLABLE CANVAS (vertical + horizontal) USING ONLY GRID
+        # =============================================================
+        top.grid_rowconfigure(0, weight=1)
+        top.grid_columnconfigure(0, weight=1)
 
-        self.preview_image_label = ctk.CTkLabel(self.preview_scroll, text="")
-        self.preview_image_label.pack()
+        container = ctk.CTkFrame(top)
+        container.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        container.grid_columnconfigure(0, weight=1)
+        container.grid_rowconfigure(0, weight=1)
 
-        # Bottom control buttons
+        # Canvas for image preview
+        self.preview_canvas = tk.Canvas(container, background=self.cget("bg"), highlightthickness=0)
+        self.preview_canvas.grid(row=0, column=0, sticky="nsew")
+
+        # Scrollbars
+        self.preview_v_scroll = tk.Scrollbar(container, orient="vertical", command=self.preview_canvas.yview)
+        self.preview_v_scroll.grid(row=0, column=1, sticky="ns")
+
+        self.preview_h_scroll = tk.Scrollbar(container, orient="horizontal", command=self.preview_canvas.xview)
+        self.preview_h_scroll.grid(row=1, column=0, sticky="ew")
+
+        # Attach scrollbars
+        self.preview_canvas.configure(
+            yscrollcommand=self.preview_v_scroll.set, xscrollcommand=self.preview_h_scroll.set
+        )
+
+        # Inner CTk frame inside canvas
+        self.preview_frame = ctk.CTkFrame(self.preview_canvas, fg_color="transparent")
+        self._preview_window_id = self.preview_canvas.create_window((0, 0), window=self.preview_frame, anchor="nw")
+
+        # Update scrollregion when inner frame resizes
+        def _update_region(event=None):
+            self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all"))
+
+        self.preview_frame.bind("<Configure>", _update_region)
+
+        # Image label inside preview_frame
+        self.preview_image_label = ctk.CTkLabel(self.preview_frame, text="")
+        self.preview_image_label.grid(row=0, column=0, pady=5)
+
+        # =============================================================
+        #   BUTTON ROW (GRID, BIG FONT, BOLD)
+        # =============================================================
         buttons_frame = ctk.CTkFrame(top)
-        buttons_frame.pack(fill="x", pady=5)
+        buttons_frame.grid(row=1, column=0, sticky="ew", pady=10)
+        buttons_frame.grid_columnconfigure(0, weight=1)
+        buttons_frame.grid_columnconfigure(1, weight=1)
+        buttons_frame.grid_columnconfigure(2, weight=1)
 
-        self.prev_btn = ctk.CTkButton(buttons_frame, text="Previous", width=120, command=self._preview_prev)
-        self.prev_btn.pack(side="left", padx=10, pady=5)
+        btn_font = ctk.CTkFont(size=15, weight="bold")
 
-        self.restyle_btn = ctk.CTkButton(buttons_frame, text="Restyle", width=120, command=self._preview_restyle)
-        self.restyle_btn.pack(side="left", padx=10, pady=5)
+        self.prev_btn = ctk.CTkButton(
+            buttons_frame, text="Previous", width=120, height=40, font=btn_font, command=self._preview_prev
+        )
+        self.prev_btn.grid(row=0, column=0, padx=10, pady=10)
 
-        self.next_btn = ctk.CTkButton(buttons_frame, text="Next", width=120, command=self._preview_next)
-        self.next_btn.pack(side="left", padx=10, pady=5)
+        self.restyle_btn = ctk.CTkButton(
+            buttons_frame, text="Re-Style", width=120, height=40, font=btn_font, command=self._preview_restyle
+        )
+        self.restyle_btn.grid(row=0, column=1, padx=10, pady=10)
 
-        # First render
+        self.next_btn = ctk.CTkButton(
+            buttons_frame, text="Next", width=120, height=40, font=btn_font, command=self._preview_next
+        )
+        self.next_btn.grid(row=0, column=2, padx=10, pady=10)
+
+        # --- First render ---
         top.after(250, self._render_preview_image)
         self._update_preview_nav_buttons()
+
         top.after(200, top.deiconify)
 
     # --- UI Creation and Layout Methods ---
