@@ -3,7 +3,7 @@ import sys
 import json
 from PIL import Image, ImageDraw, ImageTk
 import customtkinter as ctk
-from customtkinter import filedialog
+from customtkinter import filedialog, CTkImage
 import tkinter as tk
 from tkinter import colorchooser, messagebox
 import time
@@ -240,7 +240,7 @@ class GridMaker(ctk.CTk):
             print(f"Error saving configuration: {e}")
 
     def _render_preview_image(self):
-        """Render the currently selected image into the preview window."""
+        """Render the currently selected image into the preview window using CTkImage."""
         if not (hasattr(self, "preview_files") and self.preview_files):
             return
 
@@ -275,7 +275,6 @@ class GridMaker(ctk.CTk):
         # Draw grid
         draw = ImageDraw.Draw(img)
         width, height = img.size
-
         row_step = height / rows
         col_step = width / cols
 
@@ -287,7 +286,7 @@ class GridMaker(ctk.CTk):
             x = int(i * col_step)
             draw.line([(x, 0), (x, height)], fill=grid_color, width=1)
 
-        # Resize to preview window width (fit)
+        # Resize to fit preview window
         try:
             preview_width = self.preview_window.winfo_width()
             if preview_width < 50:
@@ -297,14 +296,14 @@ class GridMaker(ctk.CTk):
 
         aspect_ratio = img.height / img.width
         final_height = int(preview_width * aspect_ratio)
+        final_img = img.resize((preview_width, final_height), Image.Resampling.LANCZOS)
 
-        preview_img = img.resize((preview_width, final_height), Image.Resampling.LANCZOS)
+        # Convert to CTkImage (fix HighDPI warning)
+        ctk_img = CTkImage(light_image=final_img, dark_image=final_img, size=(preview_width, final_height))
 
-        # Convert to CTkImage
-        tk_img = ImageTk.PhotoImage(preview_img)
         self.last_render = img
-        self.preview_image_label.configure(image=tk_img)
-        self.preview_image_label.image = tk_img  # prevent GC
+        self.preview_image_label.configure(image=ctk_img)
+        self.preview_image_label.image = ctk_img  # prevent garbage collection
 
     def _preview_next(self):
         if self.preview_index < len(self.preview_files) - 1:
@@ -339,6 +338,7 @@ class GridMaker(ctk.CTk):
     def _preview_save(self):
         """Save the currently previewed image with grid applied."""
         try:
+            self._preview_restyle()
             current_file = self.preview_files[self.preview_index]
 
             # ensure output folder
