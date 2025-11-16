@@ -70,7 +70,6 @@ jobs:
             --include-package=pillow_avif \
             --python-flag=no_site,no_asserts,no_docstrings \
             --onefile \
-            --onefile-no-compression \
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
