@@ -92,8 +92,8 @@ class GridMaker(ctk.CTk):
         # Using a resource path helper if needed, but for simplicity we rely on relative path here.
         temp_dir = os.path.dirname(__file__)
         try:
-            self.iconpath = ImageTk.PhotoImage(file=os.path.join(temp_dir, "assets", "icon.png"))
-            heart_path = os.path.join(temp_dir, "assets", "heart.png")
+            self.iconpath = ImageTk.PhotoImage(file=self.resource_path(os.path.join(temp_dir, "assets", "icon.png")))
+            heart_path = self.resource_path(os.path.join(temp_dir, "assets", "heart.png"))
             img = Image.open(heart_path)
             width_img, height_img = img.size
             # For CTk widgets (scaled, recommended)
