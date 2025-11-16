@@ -94,10 +94,11 @@ class GridMaker(ctk.CTk):
         try:
             self.iconpath = ImageTk.PhotoImage(file=os.path.join(temp_dir, "assets", "icon.png"))
             heart_path = os.path.join(temp_dir, "assets", "heart.png")
-
+            img = Image.open(heart_path)
+            width_img, height_img = img.size
             # For CTk widgets (scaled, recommended)
             self.heart_image = ctk.CTkImage(
-                light_image=Image.open(heart_path), dark_image=Image.open(heart_path), size=(32, 32)
+                light_image=Image.open(heart_path), dark_image=Image.open(heart_path), size=(width_img, height_img)
             )
 
             # For window icon (must be PhotoImage)
