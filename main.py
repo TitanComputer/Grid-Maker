@@ -302,6 +302,7 @@ class GridMaker(ctk.CTk):
 
         # Convert to CTkImage
         tk_img = ImageTk.PhotoImage(preview_img)
+        self.last_render = img
         self.preview_image_label.configure(image=tk_img)
         self.preview_image_label.image = tk_img  # prevent GC
 
@@ -334,6 +335,31 @@ class GridMaker(ctk.CTk):
             self.next_btn.configure(state="disabled")
         else:
             self.next_btn.configure(state="normal")
+
+    def _preview_save(self):
+        """Save the currently previewed image with grid applied."""
+        try:
+            current_file = self.preview_files[self.preview_index]
+
+            # ensure output folder
+            output_folder = os.path.normpath(os.path.join(os.path.dirname(current_file), "output"))
+            os.makedirs(output_folder, exist_ok=True)
+
+            # build output name
+            base = os.path.basename(current_file)
+            name, ext = os.path.splitext(base)
+            save_path = os.path.join(output_folder, f"{name}_preview_grid{ext}")
+
+            # self.last_render holds the last rendered PIL image (from _render_preview_image)
+            if hasattr(self, "last_render") and self.last_render is not None:
+                self.last_render.save(save_path)
+
+                messagebox.showinfo("Saved", f"Image saved successfully:\n{save_path}")
+            else:
+                messagebox.showerror("Error", "Rendered image not found.")
+
+        except Exception as e:
+            messagebox.showerror("Save Error", str(e))
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
@@ -435,23 +461,33 @@ class GridMaker(ctk.CTk):
         buttons_frame.grid_columnconfigure(0, weight=1)
         buttons_frame.grid_columnconfigure(1, weight=1)
         buttons_frame.grid_columnconfigure(2, weight=1)
+        buttons_frame.grid_columnconfigure(3, weight=1)
 
-        btn_font = ctk.CTkFont(size=15, weight="bold")
+        btn_font = ctk.CTkFont(size=16, weight="bold")
 
+        # Previous button
         self.prev_btn = ctk.CTkButton(
             buttons_frame, text="Previous", width=120, height=40, font=btn_font, command=self._preview_prev
         )
         self.prev_btn.grid(row=0, column=0, padx=10, pady=10)
 
+        # Re-Style button
         self.restyle_btn = ctk.CTkButton(
             buttons_frame, text="Re-Style", width=120, height=40, font=btn_font, command=self._preview_restyle
         )
         self.restyle_btn.grid(row=0, column=1, padx=10, pady=10)
 
+        # Save button
+        self.save_btn = ctk.CTkButton(
+            buttons_frame, text="Save", width=120, height=40, font=btn_font, command=self._preview_save
+        )
+        self.save_btn.grid(row=0, column=2, padx=10, pady=10)
+
+        # Next button
         self.next_btn = ctk.CTkButton(
             buttons_frame, text="Next", width=120, height=40, font=btn_font, command=self._preview_next
         )
-        self.next_btn.grid(row=0, column=2, padx=10, pady=10)
+        self.next_btn.grid(row=0, column=3, padx=10, pady=10)
 
         # --- First render ---
         top.after(250, self._render_preview_image)
