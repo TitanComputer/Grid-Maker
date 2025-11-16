@@ -67,6 +67,7 @@ jobs:
             --follow-imports \
             --windows-icon-from-ico="assets/icon.png" \
             --include-data-dir=assets=assets \
+            --include-package=pillow_avif \
             --python-flag=no_site,no_asserts,no_docstrings \
             --onefile \
             --onefile-no-compression \
