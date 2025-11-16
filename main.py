@@ -139,6 +139,7 @@ class GridMaker(ctk.CTk):
         # --- UI Setup ---
         self.grid_columnconfigure(0, weight=1)
         self._create_widgets()
+        self._update_preview_button_state()
 
         # --- Lock Updater Control START ---
         self.lock_refresh_active = True
@@ -147,6 +148,20 @@ class GridMaker(ctk.CTk):
             self.lock_thread.start()
             print("Lock refresh started.")
         # --- Lock Updater Control END ---
+
+    def _update_preview_button_state(self):
+        folder = self.folder_path_var.get()
+        if not os.path.isdir(folder):
+            self.preview_button.configure(state="disabled")
+            return
+        supported = (".png", ".jpg", ".jpeg", ".avif", ".webp")
+        files = [
+            f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and f.lower().endswith(supported)
+        ]
+        if len(files) > 0:
+            self.preview_button.configure(state="normal")
+        else:
+            self.preview_button.configure(state="disabled")
 
     def center_window(self):
         """
@@ -223,6 +238,24 @@ class GridMaker(ctk.CTk):
             print("Configuration saved successfully.")
         except Exception as e:
             print(f"Error saving configuration: {e}")
+
+    def _open_preview_window(self):
+        # opens non-modal preview window
+        top = ctk.CTkToplevel(self)
+        top.title("Preview")
+        top.resizable(True, True)
+        self.update_idletasks()
+        main_x = self.winfo_x()
+        main_y = self.winfo_y()
+        main_w = self.winfo_width()
+        main_h = self.winfo_height()
+
+        preview_w = 700
+        preview_h = main_h
+        preview_x = main_x + main_w
+        preview_y = main_y
+
+        top.geometry(f"{preview_w}x{preview_h}+{preview_x}+{preview_y}")
 
     # --- UI Creation and Layout Methods ---
 
@@ -445,10 +478,10 @@ class GridMaker(ctk.CTk):
         self.preview_button = ctk.CTkButton(
             button_row_frame,
             text="Preview Grid",
-            state="disabled",
             font=BUTTON_FONT,
             height=BUTTON_HEIGHT,  # Fixed height
         )
+        self.preview_button.configure(command=self._open_preview_window)
         self.preview_button.grid(row=0, column=1, sticky="ew", padx=(5, 5))
 
         # Reset Button (Text is now English)
@@ -540,6 +573,7 @@ class GridMaker(ctk.CTk):
             except Exception:
                 # fallback: if CTkEntry API differs, just set the variable
                 pass
+        self._update_preview_button_state()
 
     def _pick_color(self):
         """Opens a color chooser dialog and updates the grid color variable and display."""
