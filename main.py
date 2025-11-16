@@ -239,11 +239,106 @@ class GridMaker(ctk.CTk):
         except Exception as e:
             print(f"Error saving configuration: {e}")
 
+    def _render_preview_image(self):
+        """Render the currently selected image into the preview window."""
+        if not (hasattr(self, "preview_files") and self.preview_files):
+            return
+
+        img_path = self.preview_files[self.preview_index]
+
+        try:
+            img = Image.open(img_path).convert("RGB")
+        except Exception as e:
+            print(f"Preview load error: {e}")
+            return
+
+        # Load settings
+        h_pad = self.settings["h_padding"].get()
+        v_pad = self.settings["v_padding"].get()
+        zoom = self.settings["zoom_factor"].get()
+        grid_color = self.settings["grid_color"].get()
+        rows = self.settings["grid_rows"].get()
+        cols = self.settings["grid_cols"].get()
+
+        # Crop padding
+        width, height = img.size
+        if width > 2 * h_pad and height > 2 * v_pad:
+            img = img.crop((h_pad, v_pad, width - h_pad, height - v_pad))
+
+        # Apply zoom
+        width, height = img.size
+        new_width = int(width * zoom)
+        new_height = int(height * zoom)
+        if new_width > 0 and new_height > 0:
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # Draw grid
+        draw = ImageDraw.Draw(img)
+        width, height = img.size
+
+        row_step = height / rows
+        col_step = width / cols
+
+        for i in range(1, rows):
+            y = int(i * row_step)
+            draw.line([(0, y), (width, y)], fill=grid_color, width=1)
+
+        for i in range(1, cols):
+            x = int(i * col_step)
+            draw.line([(x, 0), (x, height)], fill=grid_color, width=1)
+
+        # Resize to preview window width (fit)
+        try:
+            preview_width = self.preview_window.winfo_width()
+            if preview_width < 50:
+                preview_width = 600
+        except:
+            preview_width = 600
+
+        aspect_ratio = img.height / img.width
+        final_height = int(preview_width * aspect_ratio)
+
+        preview_img = img.resize((preview_width, final_height), Image.Resampling.LANCZOS)
+
+        # Convert to CTkImage
+        tk_img = ImageTk.PhotoImage(preview_img)
+        self.preview_image_label.configure(image=tk_img)
+        self.preview_image_label.image = tk_img  # prevent GC
+
+    def _preview_next(self):
+        if self.preview_index < len(self.preview_files) - 1:
+            self.preview_index += 1
+            self._render_preview_image()
+
+    def _preview_prev(self):
+        if self.preview_index > 0:
+            self.preview_index -= 1
+            self._render_preview_image()
+
+    def _preview_restyle(self):
+        self._render_preview_image()
+
     def _open_preview_window(self):
-        # opens non-modal preview window
-        top = ctk.CTkToplevel(self)
+        """Opens a non-modal preview window positioned next to the main window."""
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            try:
+                self.preview_window.lift()
+                self.preview_window.focus()
+            except:
+                pass
+            return
+        # Create preview window
+        self.preview_window = ctk.CTkToplevel(self)
+        top = self.preview_window
+        top.withdraw()
         top.title("Preview")
-        top.resizable(True, True)
+        top.resizable(False, False)
+
+        # Set icon safely for CTk
+        if self.iconpath:
+            top.after(250, lambda: top.iconphoto(False, self.iconpath))
+
+        # Position preview next to main window
         self.update_idletasks()
         main_x = self.winfo_x()
         main_y = self.winfo_y()
@@ -256,6 +351,46 @@ class GridMaker(ctk.CTk):
         preview_y = main_y
 
         top.geometry(f"{preview_w}x{preview_h}+{preview_x}+{preview_y}")
+
+        # Scan folder for previewable images
+        folder = self.folder_path_var.get()
+        supported = (".png", ".jpg", ".jpeg", ".avif", ".webp")
+        self.preview_files = [
+            os.path.join(folder, f)
+            for f in os.listdir(folder)
+            if os.path.isfile(os.path.join(folder, f)) and f.lower().endswith(supported)
+        ]
+
+        if not self.preview_files:
+            messagebox.showwarning("Preview", "No supported images found.")
+            top.destroy()
+            return
+
+        self.preview_index = 0
+
+        # Scrollable area for image
+        self.preview_scroll = ctk.CTkScrollableFrame(top)
+        self.preview_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.preview_image_label = ctk.CTkLabel(self.preview_scroll, text="")
+        self.preview_image_label.pack()
+
+        # Bottom control buttons
+        buttons_frame = ctk.CTkFrame(top)
+        buttons_frame.pack(fill="x", pady=5)
+
+        prev_btn = ctk.CTkButton(buttons_frame, text="Previous", width=120, command=self._preview_prev)
+        prev_btn.pack(side="left", padx=10, pady=5)
+
+        restyle_btn = ctk.CTkButton(buttons_frame, text="Restyle", width=120, command=self._preview_restyle)
+        restyle_btn.pack(side="left", padx=10, pady=5)
+
+        next_btn = ctk.CTkButton(buttons_frame, text="Next", width=120, command=self._preview_next)
+        next_btn.pack(side="left", padx=10, pady=5)
+
+        # First render
+        self._render_preview_image()
+        top.after(200, top.deiconify)
 
     # --- UI Creation and Layout Methods ---
 
