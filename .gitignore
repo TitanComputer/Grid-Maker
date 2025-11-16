@@ -211,6 +211,7 @@ __marimo__/
 
 *.exe
 main.*/
+pics/*
 .vscode/launch.json
 assets/icon.ico
 *.json
