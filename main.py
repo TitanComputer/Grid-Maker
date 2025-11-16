@@ -2,6 +2,7 @@ import os
 import sys
 import json
 from PIL import Image, ImageDraw, ImageTk
+import pillow_avif
 import customtkinter as ctk
 from customtkinter import filedialog
 import tkinter as tk
