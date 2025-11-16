@@ -350,7 +350,7 @@ class GridMaker(ctk.CTk):
         # ------------------------------
         # Row 14 & 15: Progress Bar and Percentage Label
         # ------------------------------
-        ctk.CTkLabel(self.main_frame, text="8. Progress:", font=ctk.CTkFont(weight="bold")).grid(
+        ctk.CTkLabel(self.main_frame, text="Progress:", font=ctk.CTkFont(weight="bold")).grid(
             row=14, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
         )
 
@@ -532,7 +532,7 @@ class GridMaker(ctk.CTk):
         # Reset Progress Bar and Label
         self.progress_bar.set(0)
         self.progress_text_var.set("0%")
-
+        self.save_config()
         messagebox.showinfo(
             "Settings Reset", "All settings (except the folder path) have been reset to default values."
         )
