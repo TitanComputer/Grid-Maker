@@ -100,6 +100,8 @@ Grid Maker is especially useful for:
 
 
 
+---
+
 ## 📥 Download
 
 You can download the latest compiled `.exe` version from the [Releases](https://github.com/TitanComputer/Grid-Maker/releases/latest) section.  
@@ -112,18 +114,6 @@ If you're using the Python script:
 python main.py
 ```
 Or, run the Grid-Maker.exe file directly if you downloaded the compiled version.
-
-### 🖥️ How to Use the GUI
-
-1. Launch the app (`python main.py` or `Grid-Maker.exe`) then click "Start".  
-2. Chrome opens on the left side and loads [Wordle](https://www.nytimes.com/games/wordle/index.html).  
-3. The solver automatically:  
-   - Closes popups/ads  
-   - Enters the best first guess  
-   - Reads feedback and refines candidates  
-   - Repeats until solved or 6 tries are used  
-4. The log shows progress, the solution 🎉, or failure after 6 attempts.  
-5. Press **Stop** anytime to end the solver.  
 
 ---
 
@@ -153,6 +143,8 @@ grid_maker/
 │   └── donate.png              # Donate Picture
 └── requirements.txt            # Python dependencies
 ```
+---
+
 ## 🎨 Icon Credit
 The application icon used in this project is sourced from [Flaticon](https://www.flaticon.com/free-icon/pixels_923035).
 
@@ -170,6 +162,8 @@ You can build the standalone executable using the following command:
 ## 🚀 CI/CD
 
 The GitHub Actions workflow builds the binary on every release and attaches it as an artifact.
+
+---
 
 ## 🤝 Contributing
 Pull requests are welcome.
