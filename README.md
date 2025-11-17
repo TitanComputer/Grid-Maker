@@ -14,7 +14,7 @@ Built with Python, CustomTkinter, and Pillow, the tool provides a modern UI, liv
 
 ### 🔧 Image Processing
 - Trim horizontal and vertical padding  
-- Resize images using a zoom factor (0.1× – 4×)  
+- Resize images using a zoom factor (0.1× – 10×)  
 - Apply customizable grid lines with adjustable:
   - Row count
   - Column count
