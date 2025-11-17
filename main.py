@@ -1120,19 +1120,47 @@ class GridMaker(ctk.CTk):
             bbox = draw_obj.textbbox((0, 0), text, font=font_obj)
             return bbox[2] - bbox[0], bbox[3] - bbox[1]
 
+        # Row numbers every 10 rows
         for i in range(rows + 1):
-            y = round(i * row_step) + margin_top
-            text = str(i)
-            f = bold_font if (i == 0 or i % 5 == 0) else font
-            w, h = text_size(draw, text, f)
-            draw.text((margin_left - w - max(5, font_size // 2), y - h), text, fill=color, font=f)
+            if i % 10 != 0:
+                continue  # skip all non-10-step rows
 
-        for i in range(cols + 1):
-            x = round(i * col_step) + margin_left
-            text = str(i)
-            f = bold_font if (i == 0 or i % 5 == 0) else font
+            num = i // 10  # numbering logic
+
+            y = round(i * row_step) + margin_top
+            text = str(num)
+
+            is_bold = (num == 0) or (num % 5 == 0)
+            f = bold_font if is_bold else font
+
             w, h = text_size(draw, text, f)
-            draw.text((x - w // 2, margin_top - h - max(5, font_size // 2)), text, fill=color, font=f)
+            draw.text(
+                (margin_left - w - max(5, font_size // 2), y - h),
+                text,
+                fill=color,
+                font=f,
+            )
+
+        # Column numbers every 10 columns
+        for i in range(cols + 1):
+            if i % 10 != 0:
+                continue  # skip all non-10-step columns
+
+            num = i // 10
+
+            x = round(i * col_step) + margin_left
+            text = str(num)
+
+            is_bold = (num == 0) or (num % 5 == 0)
+            f = bold_font if is_bold else font
+
+            w, h = text_size(draw, text, f)
+            draw.text(
+                (x - w // 2, margin_top - h - max(5, font_size // 2)),
+                text,
+                fill=color,
+                font=f,
+            )
 
         return new_img
 
