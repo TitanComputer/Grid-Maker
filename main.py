@@ -12,7 +12,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -649,7 +649,7 @@ class GridMaker(ctk.CTk):
         color_frame.grid_columnconfigure(2, weight=1)
 
         self.color_button = ctk.CTkButton(
-            color_frame, text="Select Color", font=ctk.CTkFont(weight="bold"), command=self._pick_color
+            color_frame, text="Select Color", width=100, font=ctk.CTkFont(weight="bold"), command=self._pick_color
         )
         self.color_button.grid(row=0, column=0, sticky="w")
 
@@ -669,7 +669,7 @@ class GridMaker(ctk.CTk):
         toggle_frame.grid(row=0, column=2, sticky="e")
 
         toggle_label = ctk.CTkLabel(toggle_frame, text="Show Grid Numbers (Step = 10)", font=ctk.CTkFont(weight="bold"))
-        toggle_label.grid(row=0, column=0, padx=(35, 5))
+        toggle_label.grid(row=0, column=0, padx=(45, 5), sticky="e")
 
         self.grid_number_toggle = ctk.CTkSwitch(
             toggle_frame,
@@ -881,7 +881,11 @@ class GridMaker(ctk.CTk):
         color_code = colorchooser.askcolor(title="Choose Grid Color", initialcolor=self.settings["grid_color"].get())
 
         if color_code and color_code[1] is not None:
-            self.settings["grid_color"].set(color_code[1])
+            new_color = color_code[1]
+            self.settings["grid_color"].set(new_color)
+
+            # Update the display frame color
+            self.color_display.configure(fg_color=new_color)
 
     def _reset_settings(self):
         """Resets all configuration settings to their default values, excluding the folder path, and updates UI labels."""
