@@ -292,6 +292,10 @@ class GridMaker(ctk.CTk):
             x = int(i * col_step)
             draw.line([(x, 0), (x, height)], fill=grid_color, width=1)
 
+        # --- Apply grid numbers if enabled
+        if self.settings["show_grid_numbers"].get():
+            img = self._apply_grid_numbers(img)
+
         # Resize to fit preview window
         try:
             preview_width = self.preview_window.winfo_width()
