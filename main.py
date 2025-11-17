@@ -1209,42 +1209,60 @@ class GridMaker(ctk.CTk):
             # Draw line from (x, 0) to (x, height)
             draw.line([(x, 0), (x, height)], fill=color, width=1)
 
-        # draw grid numbers if enabled
         if settings.get("show_grid_numbers", False):
-            number_offset = 10
-            font_size = max(12, width // 50)
+            font_size = max(14, min(width, height) // 40)
             try:
-                from PIL import ImageFont
-
                 font = ImageFont.truetype("arial.ttf", font_size)
                 bold_font = ImageFont.truetype("arialbd.ttf", font_size)
             except:
                 font = None
                 bold_font = None
 
-            # row numbers (horizontal positions)
+            margin_left = int(max(width * 0.07, font_size * 2.5))
+            margin_top = int(max(height * 0.07, font_size * 2.5))
+            new_width = width + margin_left
+            new_height = height + margin_top
+
+            new_img = Image.new("RGB", (new_width, new_height), (255, 255, 255))
+            new_img.paste(img, (margin_left, margin_top))
+            draw = ImageDraw.Draw(new_img)
+
+            row_step = height / rows
+            col_step = width / cols
+
+            def text_size(draw_obj, text, font_obj):
+                bbox = draw_obj.textbbox((0, 0), text, font=font_obj)
+                w = bbox[2] - bbox[0]
+                h = bbox[3] - bbox[1]
+                return w, h
+
             for i in range(rows + 1):
-                y = int(i * row_step)
+                y = round(i * row_step) + margin_top
                 text = str(i)
                 is_bold = i == 0 or i % 5 == 0
+                f = bold_font if is_bold else font
+                w, h = text_size(draw, text, f)
                 draw.text(
-                    (number_offset, y + number_offset),
+                    (margin_left - w - max(5, font_size // 2), y - h),
                     text,
                     fill=color,
-                    font=bold_font if is_bold else font,
+                    font=f,
                 )
 
-            # column numbers (vertical positions)
             for i in range(cols + 1):
-                x = int(i * col_step)
+                x = round(i * col_step) + margin_left
                 text = str(i)
                 is_bold = i == 0 or i % 5 == 0
+                f = bold_font if is_bold else font
+                w, h = text_size(draw, text, f)
                 draw.text(
-                    (x + number_offset, number_offset),
+                    (x - w // 2, margin_top - h - max(5, font_size // 2)),
                     text,
                     fill=color,
-                    font=bold_font if is_bold else font,
+                    font=f,
                 )
+
+            img = new_img
 
         # 4. Save Output
         base_name, ext = os.path.splitext(os.path.basename(output_path))
