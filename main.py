@@ -437,7 +437,15 @@ class GridMaker(ctk.CTk):
 
                     self.last_render = new_img
 
-                self.last_render.save(save_path)
+                base_name, ext = os.path.splitext(os.path.basename(save_path))
+                save_format = "PNG"
+                if ext.lower() in (".jpg", ".jpeg"):
+                    save_format = "JPEG"
+
+                if save_format == "JPEG":
+                    self.last_render.save(save_path, format=save_format, quality=95)
+                else:
+                    self.last_render.save(save_path, format=save_format)
 
                 messagebox.showinfo("Saved", f"Image saved successfully:\n{save_path}")
             else:
