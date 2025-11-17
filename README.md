@@ -98,9 +98,8 @@ Grid Maker is especially useful for:
 
 ## 🖼️ Screenshots
 
+<img width="1205" height="782" alt="Untitled5" src="https://github.com/user-attachments/assets/6e833922-ee0e-42f8-bfec-d03f96254bfe" />
 
-
----
 
 ## 📥 Download
 
