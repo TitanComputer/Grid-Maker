@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw, ImageTk, ImageFont
 import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 import tkinter as tk
@@ -27,6 +27,7 @@ DEFAULT_CONFIG = {
     "grid_color": "#000000",
     "grid_rows": 100,
     "grid_cols": 200,
+    "show_grid_numbers": True,
 }
 
 # Determine configuration directory based on OS
@@ -127,6 +128,7 @@ class GridMaker(ctk.CTk):
             "grid_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_color"]),
             "grid_rows": ctk.IntVar(value=DEFAULT_CONFIG["grid_rows"]),
             "grid_cols": ctk.IntVar(value=DEFAULT_CONFIG["grid_cols"]),
+            "show_grid_numbers": ctk.BooleanVar(value=DEFAULT_CONFIG["show_grid_numbers"]),
         }
         self.is_running = False
         self.stop_requested = False
@@ -200,6 +202,9 @@ class GridMaker(ctk.CTk):
                         # Special handling for folder_path (StringVar)
                         elif key == "folder_path":
                             self.folder_path_var.set(config["folder_path"])
+                        elif key == "show_grid_numbers":
+                            self.settings["show_grid_numbers"].set(config[key])
+
                 print("Configuration loaded successfully.")
         except FileNotFoundError:
             print("Config file not found. Using default settings.")
@@ -230,6 +235,7 @@ class GridMaker(ctk.CTk):
             "grid_color": self.settings["grid_color"].get(),
             "grid_rows": self.settings["grid_rows"].get(),
             "grid_cols": self.settings["grid_cols"].get(),
+            "show_grid_numbers": self.settings["show_grid_numbers"].get(),
         }
 
         try:
@@ -352,6 +358,85 @@ class GridMaker(ctk.CTk):
 
             # self.last_render holds the last rendered PIL image (from _render_preview_image)
             if hasattr(self, "last_render") and self.last_render is not None:
+                # apply grid numbers if enabled
+                if self.settings["show_grid_numbers"].get():
+                    img = self.last_render
+
+                    # --- convert to RGB and crop transparency if exists ---
+                    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+                        alpha = img.convert("RGBA").split()[-1]
+                        bbox = alpha.getbbox()
+                        if bbox:
+                            img = img.crop(bbox)
+                    img = img.convert("RGB")
+
+                    width, height = img.size
+                    rows = self.settings["grid_rows"].get()
+                    cols = self.settings["grid_cols"].get()
+                    color = self.settings["grid_color"].get()
+
+                    try:
+                        font_size = max(14, min(width, height) // 40)
+                        font = ImageFont.truetype("arial.ttf", font_size)
+                        bold_font = ImageFont.truetype("arialbd.ttf", font_size)
+                    except:
+                        font = None
+                        bold_font = None
+                        font_size = 14
+
+                    # --- dynamic margin based on image size and font ---
+                    margin_left = int(max(width * 0.07, font_size * 2.5))
+                    margin_top = int(max(height * 0.07, font_size * 2.5))
+                    new_width = width + margin_left
+                    new_height = height + margin_top
+
+                    new_img = Image.new("RGB", (new_width, new_height), (255, 255, 255))
+                    new_img.paste(img, (margin_left, margin_top))
+
+                    draw = ImageDraw.Draw(new_img)
+
+                    row_step = height / rows
+                    col_step = width / cols
+
+                    # helper to get text width/height
+                    def text_size(draw_obj, text, font_obj):
+                        bbox = draw_obj.textbbox((0, 0), text, font=font_obj)
+                        w = bbox[2] - bbox[0]
+                        h = bbox[3] - bbox[1]
+                        return w, h
+
+                    # --- draw row numbers ---
+                    for i in range(rows + 1):
+                        y = round(i * row_step) + margin_top
+                        text = str(i)
+                        is_bold = i == 0 or i % 5 == 0
+                        f = bold_font if is_bold else font
+                        w, h = text_size(draw, text, f)
+
+                        # place text so that its baseline aligns with the grid line
+                        draw.text(
+                            (margin_left - w - max(5, font_size // 2), y - h),  # use y - h instead of y - h//2
+                            text,
+                            fill=color,
+                            font=f,
+                        )
+
+                    # --- draw column numbers ---
+                    for i in range(cols + 1):
+                        x = round(i * col_step) + margin_left
+                        text = str(i)
+                        is_bold = i == 0 or i % 5 == 0
+                        f = bold_font if is_bold else font
+                        w, h = text_size(draw, text, f)
+                        draw.text(
+                            (x - w // 2, margin_top - h - max(5, font_size // 2)),
+                            text,
+                            fill=color,
+                            font=f,
+                        )
+
+                    self.last_render = new_img
+
                 self.last_render.save(save_path)
 
                 messagebox.showinfo("Saved", f"Image saved successfully:\n{save_path}")
@@ -613,34 +698,41 @@ class GridMaker(ctk.CTk):
         )
 
         # ------------------------------
-        # Row 8 & 9: Color Picker
+        # Row 8 & 9: Color Picker + Toggle
         # ------------------------------
         ctk.CTkLabel(self.main_frame, text="5. Grid Line Color:", font=ctk.CTkFont(weight="bold")).grid(
             row=8, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
         )
 
         color_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        color_frame.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)  # Added padx=20
-
+        color_frame.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
         color_frame.grid_columnconfigure(0, weight=1)
+        color_frame.grid_columnconfigure(1, weight=0)
+        color_frame.grid_columnconfigure(2, weight=0)
 
         self.color_button = ctk.CTkButton(color_frame, text="Select Color", command=self._pick_color)
-        self.color_button.grid(row=0, column=0, sticky="w", padx=(0, 10))
+        self.color_button.grid(row=0, column=0, sticky="w")
 
         self.color_display = ctk.CTkFrame(
             color_frame,
-            width=50,
+            width=40,
             height=20,
             fg_color=self.settings["grid_color"].get(),
             corner_radius=5,
             border_width=2,
             border_color="gray",
         )
-        self.color_display.grid(row=0, column=1, sticky="e")
-        # Update color display when variable changes
-        self.settings["grid_color"].trace_add(
-            "write", lambda *args: self.color_display.configure(fg_color=self.settings["grid_color"].get())
+        self.color_display.grid(row=0, column=1, padx=(10, 0))
+
+        self.grid_number_toggle = ctk.CTkSwitch(
+            color_frame,
+            text="Show Grid Numbers",
+            variable=self.settings["show_grid_numbers"],
+            onvalue=True,
+            offvalue=False,
         )
+        self.grid_number_toggle.select()
+        self.grid_number_toggle.grid(row=0, column=2, padx=(30, 0))
 
         # ------------------------------
         # Row 10 & 11: Grid Row Count Slider
@@ -974,6 +1066,7 @@ class GridMaker(ctk.CTk):
             "grid_color": self.settings["grid_color"].get(),
             "grid_rows": self.settings["grid_rows"].get(),
             "grid_cols": self.settings["grid_cols"].get(),
+            "show_grid_numbers": self.settings["show_grid_numbers"].get(),
         }
 
         for i, filename in enumerate(files):
@@ -1115,6 +1208,43 @@ class GridMaker(ctk.CTk):
             x = int(i * col_step)
             # Draw line from (x, 0) to (x, height)
             draw.line([(x, 0), (x, height)], fill=color, width=1)
+
+        # draw grid numbers if enabled
+        if settings.get("show_grid_numbers", False):
+            number_offset = 10
+            font_size = max(12, width // 50)
+            try:
+                from PIL import ImageFont
+
+                font = ImageFont.truetype("arial.ttf", font_size)
+                bold_font = ImageFont.truetype("arialbd.ttf", font_size)
+            except:
+                font = None
+                bold_font = None
+
+            # row numbers (horizontal positions)
+            for i in range(rows + 1):
+                y = int(i * row_step)
+                text = str(i)
+                is_bold = i == 0 or i % 5 == 0
+                draw.text(
+                    (number_offset, y + number_offset),
+                    text,
+                    fill=color,
+                    font=bold_font if is_bold else font,
+                )
+
+            # column numbers (vertical positions)
+            for i in range(cols + 1):
+                x = int(i * col_step)
+                text = str(i)
+                is_bold = i == 0 or i % 5 == 0
+                draw.text(
+                    (x + number_offset, number_offset),
+                    text,
+                    fill=color,
+                    font=bold_font if is_bold else font,
+                )
 
         # 4. Save Output
         base_name, ext = os.path.splitext(os.path.basename(output_path))
