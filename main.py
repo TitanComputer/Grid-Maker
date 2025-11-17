@@ -12,7 +12,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -447,12 +447,12 @@ class GridMaker(ctk.CTk):
                 else:
                     self.last_render.save(save_path, format=save_format)
 
-                messagebox.showinfo("Saved", f"Image saved successfully:\n{save_path}")
+                messagebox.showinfo("Saved", f"Image saved successfully:\n{save_path}", parent=self.preview_window)
             else:
-                messagebox.showerror("Error", "Rendered image not found.")
+                messagebox.showerror("Error", "Rendered image not found.", parent=self.preview_window)
 
         except Exception as e:
-            messagebox.showerror("Save Error", str(e))
+            messagebox.showerror("Save Error", str(e), parent=self.preview_window)
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
@@ -524,7 +524,7 @@ class GridMaker(ctk.CTk):
         ]
 
         if not self.preview_files:
-            messagebox.showwarning("Preview", "No supported images found.")
+            messagebox.showwarning("Preview", "No supported images found.", parent=self.preview_window)
             top.destroy()
             return
 
