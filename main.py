@@ -28,6 +28,8 @@ DEFAULT_CONFIG = {
     "grid_rows": 100,
     "grid_cols": 200,
     "show_grid_numbers": True,
+    "grid_number_text_color": "#000000",
+    "grid_number_bg_color": "#FFFFFF",
 }
 
 # Determine configuration directory based on OS
@@ -129,6 +131,8 @@ class GridMaker(ctk.CTk):
             "grid_rows": ctk.IntVar(value=DEFAULT_CONFIG["grid_rows"]),
             "grid_cols": ctk.IntVar(value=DEFAULT_CONFIG["grid_cols"]),
             "show_grid_numbers": ctk.BooleanVar(value=DEFAULT_CONFIG["show_grid_numbers"]),
+            "grid_number_text_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_text_color"]),
+            "grid_number_bg_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_bg_color"]),
         }
         self.is_running = False
         self.stop_requested = False
@@ -175,7 +179,7 @@ class GridMaker(ctk.CTk):
         """
         self.update_idletasks()
         width = 500
-        height = 750
+        height = 850
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width // 2) - (width // 2)
@@ -236,6 +240,8 @@ class GridMaker(ctk.CTk):
             "grid_rows": self.settings["grid_rows"].get(),
             "grid_cols": self.settings["grid_cols"].get(),
             "show_grid_numbers": self.settings["show_grid_numbers"].get(),
+            "grid_number_text_color": self.settings["grid_number_text_color"].get(),
+            "grid_number_bg_color": self.settings["grid_number_bg_color"].get(),
         }
 
         try:
@@ -553,14 +559,12 @@ class GridMaker(ctk.CTk):
 
         # Main Frame for Padding/Spacing
         self.main_frame = ctk.CTkFrame(self)
-        # FIX: Removed padx=20, pady=20 to eliminate the outer margin that was causing the content to be distanced from the window edges.
         self.main_frame.grid(row=0, column=0, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
 
         # ------------------------------
         # Row 0 & 1: Folder Selection
         # ------------------------------
-        # Added padx=20 to the internal elements to create the desired margin within the frame
         ctk.CTkLabel(
             self.main_frame,
             text="1. Select Input Folder (Must Contain PNG, JPG, AVIF, WEBP):",
@@ -575,7 +579,6 @@ class GridMaker(ctk.CTk):
         self.folder_entry.configure(state="readonly")
         self.folder_entry.grid(row=1, column=0, padx=(20, 5), sticky="ew")
 
-        # NEW: apply last saved folder if it exists
         if self.folder_path_var.get() != "":
             self.folder_entry.configure(state="normal")
             self.folder_entry.delete(0, "end")
@@ -585,7 +588,6 @@ class GridMaker(ctk.CTk):
         self.browse_button = ctk.CTkButton(self.main_frame, text="Browse", command=self._browse_folder)
         self.browse_button.grid(row=1, column=1, padx=(5, 20), sticky="e")
 
-        # Configure column weights for folder row
         self.main_frame.grid_columnconfigure(0, weight=1)
         self.main_frame.grid_columnconfigure(1, weight=0)
 
@@ -665,6 +667,7 @@ class GridMaker(ctk.CTk):
             border_width=2,
             border_color="gray",
         )
+
         self.color_display.grid(row=0, column=1, padx=10, sticky="e")
 
         # Create a small frame for label + switch
@@ -684,14 +687,65 @@ class GridMaker(ctk.CTk):
         self.grid_number_toggle.grid(row=0, column=1)
 
         # ------------------------------
-        # Row 10 & 11: Grid Row Count Slider
+        # Row 10: Grid Numbering Colors Title
+        # ------------------------------
+        ctk.CTkLabel(self.main_frame, text="6. Grid Numbering Colors:", font=ctk.CTkFont(weight="bold")).grid(
+            row=10, column=0, columnspan=2, pady=(15, 5), sticky="w", padx=20
+        )
+
+        # ------------------------------
+        # Row 11: Grid Numbering Colors (Text + Background)
+        # ------------------------------
+        gridnum_color_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        gridnum_color_frame.grid(row=11, column=0, columnspan=2, sticky="ew", padx=20, pady=(5, 10))
+        gridnum_color_frame.grid_columnconfigure(0, weight=0)
+        gridnum_color_frame.grid_columnconfigure(1, weight=0)
+        gridnum_color_frame.grid_columnconfigure(2, weight=0)
+        gridnum_color_frame.grid_columnconfigure(3, weight=1)
+
+        # ---- Text Color Button ----
+        self.num_text_color_button = ctk.CTkButton(
+            gridnum_color_frame, text="Numbers Text Color", width=140, command=lambda: self._pick_number_color("text")
+        )
+        self.num_text_color_button.grid(row=0, column=0, sticky="w")
+
+        self.num_text_color_display = ctk.CTkFrame(
+            gridnum_color_frame,
+            width=40,
+            height=20,
+            fg_color=self.settings["grid_number_text_color"].get(),
+            corner_radius=5,
+            border_width=2,
+            border_color="gray",
+        )
+        self.num_text_color_display.grid(row=0, column=1, padx=(10, 20), sticky="w")
+
+        # ---- Background Color Button ----
+        self.num_bg_color_button = ctk.CTkButton(
+            gridnum_color_frame, text="Numbers BG Color", width=140, command=lambda: self._pick_number_color("bg")
+        )
+        self.num_bg_color_button.grid(row=0, column=2, sticky="w")
+
+        self.num_bg_color_display = ctk.CTkFrame(
+            gridnum_color_frame,
+            width=40,
+            height=20,
+            fg_color=self.settings["grid_number_bg_color"].get(),
+            corner_radius=5,
+            border_width=2,
+            border_color="gray",
+        )
+        self.num_bg_color_display.grid(row=0, column=3, padx=10, sticky="e")
+
+        # ------------------------------
+        # Row 11 & 12: Grid Row Count Slider
         # ------------------------------
         ctk.CTkLabel(
-            self.main_frame, text="6. Grid Row Count (Horizontal Lines, 10-400):", font=ctk.CTkFont(weight="bold")
-        ).grid(row=10, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
+            self.main_frame, text="7. Grid Row Count (Horizontal Lines, 10-400):", font=ctk.CTkFont(weight="bold")
+        ).grid(row=12, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
         self.rows_slider = self._create_slider(
             frame=self.main_frame,
-            row=11,
+            row=13,
             key="grid_rows",
             slider_var=self.settings["grid_rows"],
             from_=10,
@@ -700,14 +754,14 @@ class GridMaker(ctk.CTk):
         )
 
         # ------------------------------
-        # Row 12 & 13: Grid Column Count Slider
+        # Row 13 & 14: Grid Column Count Slider
         # ------------------------------
         ctk.CTkLabel(
-            self.main_frame, text="7. Grid Column Count (Vertical Lines, 10-400):", font=ctk.CTkFont(weight="bold")
-        ).grid(row=12, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
+            self.main_frame, text="8. Grid Column Count (Vertical Lines, 10-400):", font=ctk.CTkFont(weight="bold")
+        ).grid(row=14, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
         self.cols_slider = self._create_slider(
             frame=self.main_frame,
-            row=13,
+            row=15,
             key="grid_cols",
             slider_var=self.settings["grid_cols"],
             from_=10,
@@ -716,15 +770,15 @@ class GridMaker(ctk.CTk):
         )
 
         # ------------------------------
-        # Row 14 & 15: Progress Bar and Percentage Label
+        # Row 15 & 16: Progress Bar and Percentage Label
         # ------------------------------
         ctk.CTkLabel(self.main_frame, text="Progress:", font=ctk.CTkFont(weight="bold")).grid(
-            row=14, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
+            row=16, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
         )
 
         # New Frame for Progress Bar and Percentage Label
         progress_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        progress_frame.grid(row=15, column=0, columnspan=2, pady=(5, 10), sticky="ew", padx=20)
+        progress_frame.grid(row=17, column=0, columnspan=2, pady=(5, 10), sticky="ew", padx=20)
         progress_frame.grid_columnconfigure(0, weight=1)  # Progress bar takes most space
         progress_frame.grid_columnconfigure(1, weight=0)  # Percentage label is fixed width
 
@@ -737,7 +791,7 @@ class GridMaker(ctk.CTk):
         self.progress_label.grid(row=0, column=1, sticky="e")
 
         # ------------------------------
-        # Row 16: Start/Stop Button (Increased Size and Font)
+        # Row 17: Start/Stop Button (Increased Size and Font)
         # ------------------------------
         self.start_button = ctk.CTkButton(
             self.main_frame,
@@ -748,17 +802,16 @@ class GridMaker(ctk.CTk):
             height=50,  # Increased height
             font=ctk.CTkFont(size=20, weight="bold"),  # Larger font
         )
-        self.start_button.grid(row=16, column=0, columnspan=2, pady=(10, 10), sticky="ew", padx=20)  # Added padx=20
+        self.start_button.grid(row=18, column=0, columnspan=2, pady=(10, 10), sticky="ew", padx=20)
 
         # ------------------------------
-        # Row 17: Action Buttons (Donate/Preview/Reset - Fixed Height)
+        # Row 18: Action Buttons (Donate/Preview/Reset - Fixed Height)
         # ------------------------------
         button_row_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        # Increased pady bottom from 10 to 30 for extra space at the bottom
-        button_row_frame.grid(row=17, column=0, columnspan=2, pady=(10, 30), sticky="ew", padx=20)
+        button_row_frame.grid(row=19, column=0, columnspan=2, pady=(10, 30), sticky="ew", padx=20)
         button_row_frame.grid_columnconfigure(0, weight=1)
         button_row_frame.grid_columnconfigure(1, weight=1)
-        button_row_frame.grid_columnconfigure(2, weight=1)  # Added column for Reset Button
+        button_row_frame.grid_columnconfigure(2, weight=1)
 
         BUTTON_HEIGHT = 40  # Fixed height to ensure all buttons are visually the same size
         BUTTON_FONT = ctk.CTkFont(size=16, weight="bold")
@@ -878,6 +931,25 @@ class GridMaker(ctk.CTk):
                 # fallback: if CTkEntry API differs, just set the variable
                 pass
         self._update_preview_button_state()
+
+    def _pick_number_color(self, mode):
+        if mode == "text":
+            initial = self.settings["grid_number_text_color"].get()
+            color_code = colorchooser.askcolor(title="Choose Numbers Text Color", initialcolor=initial)
+
+            if color_code and color_code[1]:
+                new_color = color_code[1]
+                self.settings["grid_number_text_color"].set(new_color)
+                self.num_text_color_display.configure(fg_color=new_color)
+
+        elif mode == "bg":
+            initial = self.settings["grid_number_bg_color"].get()
+            color_code = colorchooser.askcolor(title="Choose Numbers Background Color", initialcolor=initial)
+
+            if color_code and color_code[1]:
+                new_color = color_code[1]
+                self.settings["grid_number_bg_color"].set(new_color)
+                self.num_bg_color_display.configure(fg_color=new_color)
 
     def _pick_color(self):
         """Opens a color chooser dialog and updates the grid color variable and display."""
@@ -1106,6 +1178,10 @@ class GridMaker(ctk.CTk):
                 self.after(0, lambda: self.progress_text_var.set("100%"))
 
     def _apply_grid_numbers(self, img):
+        """Applies grid numbers to the image."""
+        text_color = self.settings["grid_number_text_color"].get()
+        bg_color = self.settings["grid_number_bg_color"].get()
+
         img = img.convert("RGB")
         width, height = img.size
 
@@ -1156,7 +1232,7 @@ class GridMaker(ctk.CTk):
             draw.text(
                 (margin_left - w - max(5, font_size // 2), y - h),
                 text,
-                fill=color,
+                fill=text_color,
                 font=f,
             )
 
@@ -1177,7 +1253,7 @@ class GridMaker(ctk.CTk):
             draw.text(
                 (x - w // 2, margin_top - h - max(5, font_size // 2)),
                 text,
-                fill=color,
+                fill=text_color,
                 font=f,
             )
 
