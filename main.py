@@ -12,7 +12,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.5.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -369,10 +369,6 @@ class GridMaker(ctk.CTk):
 
             # self.last_render holds the last rendered PIL image (from _render_preview_image)
             if hasattr(self, "last_render") and self.last_render is not None:
-                # apply grid numbers if enabled
-                if self.settings["show_grid_numbers"].get():
-                    img = self._apply_grid_numbers(self.last_render)
-                    self.last_render = img
 
                 base_name, ext = os.path.splitext(os.path.basename(save_path))
                 save_format = "PNG"
@@ -1204,7 +1200,8 @@ class GridMaker(ctk.CTk):
         new_width = width + margin_left
         new_height = height + margin_top
 
-        new_img = Image.new("RGB", (new_width, new_height), (255, 255, 255))
+        new_img = Image.new("RGB", (new_width, new_height), bg_color)
+
         new_img.paste(img, (margin_left, margin_top))
         draw = ImageDraw.Draw(new_img)
 
