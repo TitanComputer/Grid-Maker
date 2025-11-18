@@ -348,6 +348,7 @@ class GridMaker(ctk.CTk):
     def _preview_save(self):
         """Save the currently previewed image with grid applied."""
         try:
+            self.preview_window.grab_set()
             self._preview_restyle()
             current_file = self.preview_files[self.preview_index]
 
@@ -383,6 +384,8 @@ class GridMaker(ctk.CTk):
 
         except Exception as e:
             messagebox.showerror("Save Error", str(e), parent=self.preview_window)
+        finally:
+            self.preview_window.grab_release()
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
