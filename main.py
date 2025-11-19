@@ -179,7 +179,7 @@ class GridMaker(ctk.CTk):
         """
         self.update_idletasks()
         width = 500
-        height = 850
+        height = 820
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width // 2) - (width // 2)
@@ -581,7 +581,9 @@ class GridMaker(ctk.CTk):
             self.folder_entry.insert(0, self.folder_path_var.get())
             self.folder_entry.configure(state="readonly")
 
-        self.browse_button = ctk.CTkButton(self.main_frame, text="Browse", command=self._browse_folder)
+        self.browse_button = ctk.CTkButton(
+            self.main_frame, text="Browse", command=self._browse_folder, font=ctk.CTkFont(weight="bold"), width=90
+        )
         self.browse_button.grid(row=1, column=1, padx=(5, 20), sticky="e")
 
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -666,12 +668,22 @@ class GridMaker(ctk.CTk):
 
         self.color_display.grid(row=0, column=1, padx=10, sticky="e")
 
-        # Create a small frame for label + switch
-        toggle_frame = ctk.CTkFrame(color_frame, fg_color="transparent")
-        toggle_frame.grid(row=0, column=2, sticky="e")
+        # ------------------------------
+        # Row 10: Grid Numbering Colors Title
+        # ------------------------------
+        # Grid Numbering Title
+        ctk.CTkLabel(
+            self.main_frame,
+            text="6. Grid Numbering Settings:",
+            font=ctk.CTkFont(weight="bold"),
+        ).grid(row=10, column=0, columnspan=2, pady=(15, 5), sticky="w", padx=20)
+
+        # Toggle frame (but NOT in column=1)
+        toggle_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        toggle_frame.grid(row=10, column=0, columnspan=2, sticky="e", padx=(20, 0), pady=(15, 5))
 
         toggle_label = ctk.CTkLabel(toggle_frame, text="Show Grid Numbers (Step = 10)", font=ctk.CTkFont(weight="bold"))
-        toggle_label.grid(row=0, column=0, padx=(45, 5), sticky="e")
+        toggle_label.grid(row=0, column=0, padx=(0, 10), sticky="e")
 
         self.grid_number_toggle = ctk.CTkSwitch(
             toggle_frame,
@@ -680,14 +692,7 @@ class GridMaker(ctk.CTk):
             onvalue=True,
             offvalue=False,
         )
-        self.grid_number_toggle.grid(row=0, column=1)
-
-        # ------------------------------
-        # Row 10: Grid Numbering Colors Title
-        # ------------------------------
-        ctk.CTkLabel(self.main_frame, text="6. Grid Numbering Colors:", font=ctk.CTkFont(weight="bold")).grid(
-            row=10, column=0, columnspan=2, pady=(15, 5), sticky="w", padx=20
-        )
+        self.grid_number_toggle.grid(row=0, column=1, sticky="e")
 
         # ------------------------------
         # Row 11: Grid Numbering Colors (Text + Background)
@@ -701,7 +706,11 @@ class GridMaker(ctk.CTk):
 
         # ---- Text Color Button ----
         self.num_text_color_button = ctk.CTkButton(
-            gridnum_color_frame, text="Numbers Text Color", width=140, command=lambda: self._pick_number_color("text")
+            gridnum_color_frame,
+            text="Numbers Text Color",
+            width=140,
+            command=lambda: self._pick_number_color("text"),
+            font=ctk.CTkFont(weight="bold"),
         )
         self.num_text_color_button.grid(row=0, column=0, sticky="w")
 
@@ -718,7 +727,11 @@ class GridMaker(ctk.CTk):
 
         # ---- Background Color Button ----
         self.num_bg_color_button = ctk.CTkButton(
-            gridnum_color_frame, text="Numbers BG Color", width=140, command=lambda: self._pick_number_color("bg")
+            gridnum_color_frame,
+            text="Numbers Background Color",
+            width=140,
+            command=lambda: self._pick_number_color("bg"),
+            font=ctk.CTkFont(weight="bold"),
         )
         self.num_bg_color_button.grid(row=0, column=2, sticky="w")
 
@@ -731,7 +744,7 @@ class GridMaker(ctk.CTk):
             border_width=2,
             border_color="gray",
         )
-        self.num_bg_color_display.grid(row=0, column=3, padx=10, sticky="e")
+        self.num_bg_color_display.grid(row=0, column=3, padx=(10, 0), sticky="w")
 
         # ------------------------------
         # Row 11 & 12: Grid Row Count Slider
@@ -769,12 +782,12 @@ class GridMaker(ctk.CTk):
         # Row 15 & 16: Progress Bar and Percentage Label
         # ------------------------------
         ctk.CTkLabel(self.main_frame, text="Progress:", font=ctk.CTkFont(weight="bold")).grid(
-            row=16, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
+            row=16, column=0, columnspan=2, pady=(10, 0), sticky="w", padx=20
         )
 
         # New Frame for Progress Bar and Percentage Label
         progress_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        progress_frame.grid(row=17, column=0, columnspan=2, pady=(5, 10), sticky="ew", padx=20)
+        progress_frame.grid(row=17, column=0, columnspan=2, pady=(0, 10), sticky="ew", padx=20)
         progress_frame.grid_columnconfigure(0, weight=1)  # Progress bar takes most space
         progress_frame.grid_columnconfigure(1, weight=0)  # Percentage label is fixed width
 
@@ -798,13 +811,13 @@ class GridMaker(ctk.CTk):
             height=50,  # Increased height
             font=ctk.CTkFont(size=20, weight="bold"),  # Larger font
         )
-        self.start_button.grid(row=18, column=0, columnspan=2, pady=(10, 10), sticky="ew", padx=20)
+        self.start_button.grid(row=18, column=0, columnspan=2, pady=(5, 5), sticky="ew", padx=20)
 
         # ------------------------------
         # Row 18: Action Buttons (Donate/Preview/Reset - Fixed Height)
         # ------------------------------
         button_row_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        button_row_frame.grid(row=19, column=0, columnspan=2, pady=(10, 30), sticky="ew", padx=20)
+        button_row_frame.grid(row=19, column=0, columnspan=2, pady=(10, 15), sticky="ew", padx=20)
         button_row_frame.grid_columnconfigure(0, weight=1)
         button_row_frame.grid_columnconfigure(1, weight=1)
         button_row_frame.grid_columnconfigure(2, weight=1)
@@ -825,7 +838,7 @@ class GridMaker(ctk.CTk):
             height=BUTTON_HEIGHT,  # Fixed height
             command=self.donate,
         )
-        self.donate_button.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self.donate_button.grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
         # Preview Button (Fixed height for size consistency)
         self.preview_button = ctk.CTkButton(
@@ -835,7 +848,7 @@ class GridMaker(ctk.CTk):
             height=BUTTON_HEIGHT,  # Fixed height
         )
         self.preview_button.configure(command=self._open_preview_window)
-        self.preview_button.grid(row=0, column=1, sticky="ew", padx=(5, 5))
+        self.preview_button.grid(row=0, column=1, sticky="ew", padx=(10, 10))
 
         # Reset Button (Text is now English)
         self.reset_button = ctk.CTkButton(
@@ -848,7 +861,7 @@ class GridMaker(ctk.CTk):
             height=BUTTON_HEIGHT,  # Fixed height
             command=self._reset_settings,
         )
-        self.reset_button.grid(row=0, column=2, sticky="ew", padx=(5, 0))
+        self.reset_button.grid(row=0, column=2, sticky="ew", padx=(10, 0))
 
     def _create_slider(self, frame, row, key, slider_var, from_, to, format_spec, resolution=1):
         """
@@ -982,6 +995,8 @@ class GridMaker(ctk.CTk):
 
         # Manually trigger color display update
         self.color_display.configure(fg_color=self.settings["grid_color"].get())
+        self.num_text_color_display.configure(fg_color=self.settings["grid_number_text_color"].get())
+        self.num_bg_color_display.configure(fg_color=self.settings["grid_number_bg_color"].get())
 
         # Reset Progress Bar and Label
         self.progress_bar.set(0)
