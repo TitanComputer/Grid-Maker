@@ -12,7 +12,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.7.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -548,6 +548,11 @@ class GridMaker(ctk.CTk):
 
         top.after(200, top.deiconify)
 
+    def _restyle_checker(self):
+        # --- Call _preview_restyle if preview window is open ---
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self._preview_restyle()
+
     # --- UI Creation and Layout Methods ---
 
     def _create_widgets(self):
@@ -680,7 +685,7 @@ class GridMaker(ctk.CTk):
 
         # Toggle frame (but NOT in column=1)
         toggle_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        toggle_frame.grid(row=10, column=0, columnspan=2, sticky="e", padx=(20, 0), pady=(15, 5))
+        toggle_frame.grid(row=10, column=0, columnspan=2, padx=(225, 0), pady=(15, 5))
 
         toggle_label = ctk.CTkLabel(toggle_frame, text="Show Grid Numbers (Step = 10)", font=ctk.CTkFont(weight="bold"))
         toggle_label.grid(row=0, column=0, padx=(0, 10), sticky="e")
@@ -691,6 +696,7 @@ class GridMaker(ctk.CTk):
             variable=self.settings["show_grid_numbers"],
             onvalue=True,
             offvalue=False,
+            command=self._restyle_checker,
         )
         self.grid_number_toggle.grid(row=0, column=1, sticky="e")
 
@@ -913,8 +919,7 @@ class GridMaker(ctk.CTk):
 
         # --- Bind mouse release to call _preview_restyle ---
         def on_release(event):
-            if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
-                self._preview_restyle()
+            self._restyle_checker()
 
         slider.bind("<ButtonRelease-1>", on_release)
 
@@ -946,6 +951,30 @@ class GridMaker(ctk.CTk):
             except Exception:
                 # fallback: if CTkEntry API differs, just set the variable
                 pass
+
+        # --- Update preview if window exists ---
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            # Re-scan the new folder
+            folder = self.folder_path_var.get()
+            supported = (".png", ".jpg", ".jpeg", ".avif", ".webp")
+            self.preview_files = [
+                os.path.join(folder, f)
+                for f in os.listdir(folder)
+                if os.path.isfile(os.path.join(folder, f)) and f.lower().endswith(supported)
+            ]
+
+            if not self.preview_files:
+                self.preview_window.destroy()
+                self.center_window()
+                self._update_preview_button_state()
+                messagebox.showwarning("Preview", "No supported images found.")
+                return
+
+            # Reset index and re-render first image
+            self.preview_index = 0
+            self._render_preview_image()
+            self._update_preview_nav_buttons()
+
         self._update_preview_button_state()
 
     def _pick_number_color(self, mode):
@@ -967,9 +996,7 @@ class GridMaker(ctk.CTk):
                 self.settings["grid_number_bg_color"].set(new_color)
                 self.num_bg_color_display.configure(fg_color=new_color)
 
-        # --- Call _preview_restyle if preview window is open ---
-        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
-            self._preview_restyle()
+        self._restyle_checker()
 
     def _pick_color(self):
         """Opens a color chooser dialog and updates the grid color variable and display."""
@@ -982,9 +1009,7 @@ class GridMaker(ctk.CTk):
             # Update the display frame color
             self.color_display.configure(fg_color=new_color)
 
-        # --- Call _preview_restyle if preview window is open ---
-        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
-            self._preview_restyle()
+        self._restyle_checker()
 
     def _reset_settings(self):
         """Resets all configuration settings to their default values, excluding the folder path, and updates UI labels."""
@@ -1018,9 +1043,7 @@ class GridMaker(ctk.CTk):
         self.progress_text_var.set("0%")
         self.save_config()
 
-        # --- Call _preview_restyle if preview window is open ---
-        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
-            self._preview_restyle()
+        self._restyle_checker()
 
         messagebox.showinfo(
             "Settings Reset", "All settings (except the folder path) have been reset to default values."
@@ -1113,6 +1136,7 @@ class GridMaker(ctk.CTk):
         if self.total_files == 0:
             self.after(0, lambda: messagebox.showinfo("Info", "No supported images found in the selected folder."))
             self._cleanup_process(success=False)
+            self._update_preview_button_state()
             return
 
         settings = {
