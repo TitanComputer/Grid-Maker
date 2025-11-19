@@ -960,6 +960,10 @@ class GridMaker(ctk.CTk):
                 self.settings["grid_number_bg_color"].set(new_color)
                 self.num_bg_color_display.configure(fg_color=new_color)
 
+        # --- Call _preview_restyle if preview window is open ---
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self._preview_restyle()
+
     def _pick_color(self):
         """Opens a color chooser dialog and updates the grid color variable and display."""
         color_code = colorchooser.askcolor(title="Choose Grid Color", initialcolor=self.settings["grid_color"].get())
@@ -970,6 +974,10 @@ class GridMaker(ctk.CTk):
 
             # Update the display frame color
             self.color_display.configure(fg_color=new_color)
+
+        # --- Call _preview_restyle if preview window is open ---
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self._preview_restyle()
 
     def _reset_settings(self):
         """Resets all configuration settings to their default values, excluding the folder path, and updates UI labels."""
@@ -1002,6 +1010,11 @@ class GridMaker(ctk.CTk):
         self.progress_bar.set(0)
         self.progress_text_var.set("0%")
         self.save_config()
+
+        # --- Call _preview_restyle if preview window is open ---
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self._preview_restyle()
+
         messagebox.showinfo(
             "Settings Reset", "All settings (except the folder path) have been reset to default values."
         )
