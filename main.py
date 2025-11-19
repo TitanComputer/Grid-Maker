@@ -911,6 +911,13 @@ class GridMaker(ctk.CTk):
         )
         slider.grid(row=0, column=0, sticky="ew")
 
+        # --- Bind mouse release to call _preview_restyle ---
+        def on_release(event):
+            if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+                self._preview_restyle()
+
+        slider.bind("<ButtonRelease-1>", on_release)
+
         # Initial label update to set the correct value
         update_label(slider_var.get())
         return slider
