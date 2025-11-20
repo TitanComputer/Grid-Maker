@@ -65,11 +65,12 @@ jobs:
             --enable-plugin=tk-inter \
             --windows-console-mode=disable \
             --follow-imports \
-            --windows-icon-from-ico="assets/icon.png" \
+            --windows-icon-from-ico="assets/icon.ico" \
             --include-data-dir=assets=assets \
             --include-package=pillow_avif \
             --python-flag=no_site,no_asserts,no_docstrings \
             --onefile \
+            --onefile-no-compression \
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
