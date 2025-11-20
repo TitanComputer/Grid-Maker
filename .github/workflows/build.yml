@@ -58,6 +58,8 @@ jobs:
         run: |
           python -m nuitka \
             --jobs=4 \
+            --enable-plugin=upx \
+            --upx-binary="$UPX_BIN" \
             --enable-plugin=multiprocessing \
             --lto=yes \
             --enable-plugin=tk-inter \
@@ -67,6 +69,7 @@ jobs:
             --include-data-dir=assets=assets \
             --include-package=pillow_avif \
             --python-flag=no_site,no_asserts,no_docstrings \
+            --onefile \
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
