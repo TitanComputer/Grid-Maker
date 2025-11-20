@@ -67,7 +67,6 @@ jobs:
             --include-data-dir=assets=assets \
             --include-package=pillow_avif \
             --python-flag=no_site,no_asserts,no_docstrings \
-            --onefile \
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
