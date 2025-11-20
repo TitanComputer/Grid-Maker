@@ -68,7 +68,7 @@ jobs:
             --windows-icon-from-ico="assets/icon.png" \
             --include-data-dir=assets=assets \
             --include-package=pillow_avif \
-            --python-flag=no_site,no_asserts,no_docstrings \
+            --python-flag=no_site,no_asserts,no_docstrings,static_hashes \
             --onefile \
             --onefile-no-compression \
             --standalone \
