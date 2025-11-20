@@ -60,6 +60,7 @@ jobs:
             --jobs=4 \
             --enable-plugin=upx \
             --upx-binary="$UPX_BIN" \
+            --upx-options="--best --lzma" \
             --enable-plugin=multiprocessing \
             --lto=yes \
             --enable-plugin=tk-inter \
@@ -70,7 +71,6 @@ jobs:
             --include-package=pillow_avif \
             --python-flag=no_site,no_asserts,no_docstrings \
             --onefile \
-            --onefile-no-compression \
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
