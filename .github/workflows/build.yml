@@ -58,19 +58,16 @@ jobs:
         run: |
           python -m nuitka \
             --jobs=4 \
-            --enable-plugin=upx \
-            --upx-binary="$UPX_BIN" \
             --enable-plugin=multiprocessing \
             --lto=yes \
             --enable-plugin=tk-inter \
             --windows-console-mode=disable \
             --follow-imports \
-            --windows-icon-from-ico="assets/icon.ico" \
+            --windows-icon-from-ico="assets/icon.png" \
             --include-data-dir=assets=assets \
             --include-package=pillow_avif \
             --python-flag=no_site,no_asserts,no_docstrings \
             --onefile \
-            --onefile-no-compression \
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
