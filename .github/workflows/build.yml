@@ -98,6 +98,30 @@ jobs:
             --trademarks="Grid Maker is a trademark of Titan Computer." \
             main.py
 
+      # -------------------------
+      # 🔒 SELF SIGN CERT HERE
+      # -------------------------
+      - name: Self-sign the executable
+        shell: powershell
+        run: |
+          Write-Host "Creating self-signed certificate..."
+
+          # Create self-signed certificate
+          $cert = New-SelfSignedCertificate `
+            -DnsName "Titan Computer" `
+            -Type CodeSigningCert `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -KeyExportPolicy Exportable `
+            -NotAfter (Get-Date).AddYears(5)
+
+          # Export certificate to PFX
+          $pwd = ConvertTo-SecureString -String "P@ssw0rd123!" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath "signcert.pfx" -Password $pwd | Out-Null
+
+          Write-Host "Signing Grid-Maker.exe ..."
+          signtool sign /f "signcert.pfx" /p "P@ssw0rd123!" /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "Grid-Maker.exe"
+
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
