@@ -38,12 +38,12 @@ jobs:
           $version = Select-String -Path main.py -Pattern '^APP_VERSION\s*=\s*"(.*)"' | ForEach-Object { $_.Matches[0].Groups[1].Value }
           echo "version=$version" >> $env:GITHUB_ENV
 
-      - name: Debug Version
-        run: echo "Version is $env:version"
-        shell: pwsh
-
       - name: Set YEAR env
         run: echo "YEAR=$(Get-Date -Format yyyy)" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Debug Version and YEAR
+        run: echo "Version is $env:version" && echo "YEAR is $env:YEAR"
         shell: pwsh
 
       - name: Install Nuitka and deps
@@ -91,8 +91,8 @@ jobs:
             --output-filename=Grid-Maker \
             --company-name="Titan Computer" \
             --product-name="Grid Maker" \
-            --file-version="${{ env.version }}" \
-            --product-version="${{ env.version }}" \
+            --file-version=${{ env.version }} \
+            --product-version=${{ env.version }} \
             --file-description="Grid Maker is a desktop tool for batch-processing images and generating customizable grid overlays, commonly used for knitting and crochet pattern design." \
             --copyright="Copyright (c) ${{ env.YEAR }} Titan Computer. All rights reserved."
             --trademarks="Grid Maker is a trademark of Titan Computer." \
