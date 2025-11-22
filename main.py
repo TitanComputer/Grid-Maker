@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import math
 from PIL import Image, ImageDraw, ImageTk, ImageFont
 import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
@@ -12,7 +13,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.10.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -26,7 +27,6 @@ DEFAULT_CONFIG = {
     "zoom_factor": 1.0,
     "grid_color": "#000000",
     "grid_rows": 100,
-    "grid_cols": 200,
     "show_grid_numbers": True,
     "grid_number_text_color": "#000000",
     "grid_number_bg_color": "#FFFFFF",
@@ -129,11 +129,12 @@ class GridMaker(ctk.CTk):
             "zoom_factor": ctk.DoubleVar(value=DEFAULT_CONFIG["zoom_factor"]),
             "grid_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_color"]),
             "grid_rows": ctk.IntVar(value=DEFAULT_CONFIG["grid_rows"]),
-            "grid_cols": ctk.IntVar(value=DEFAULT_CONFIG["grid_cols"]),
             "show_grid_numbers": ctk.BooleanVar(value=DEFAULT_CONFIG["show_grid_numbers"]),
             "grid_number_text_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_text_color"]),
             "grid_number_bg_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_bg_color"]),
         }
+        # cols no longer has its own slider → always same as rows
+        self.settings["grid_cols"] = self.settings["grid_rows"]
         self.is_running = False
         self.stop_requested = False
         self.total_files = 0
@@ -238,7 +239,6 @@ class GridMaker(ctk.CTk):
             "zoom_factor": self.settings["zoom_factor"].get(),
             "grid_color": self.settings["grid_color"].get(),
             "grid_rows": self.settings["grid_rows"].get(),
-            "grid_cols": self.settings["grid_cols"].get(),
             "show_grid_numbers": self.settings["show_grid_numbers"].get(),
             "grid_number_text_color": self.settings["grid_number_text_color"].get(),
             "grid_number_bg_color": self.settings["grid_number_bg_color"].get(),
@@ -254,29 +254,37 @@ class GridMaker(ctk.CTk):
     def _draw_grid(self, img, rows, cols, color):
         """
         Draws a grid on the given PIL image object.
-        Returns the modified image.
+        Tries to keep cells square and covers the entire image.
         If rows or cols is zero, grid drawing is skipped.
         """
 
-        # If grid disabled
         if rows <= 0 or cols <= 0:
             return img
 
         width, height = img.size
         draw = ImageDraw.Draw(img)
 
-        # Step sizes (safe: rows/cols won't be zero)
-        row_step = height / rows
-        col_step = width / cols
+        # base square size (try to keep cells square)
+        cell_w = width / cols
+        cell_h = height / rows
+        cell_size = min(cell_w, cell_h)
 
-        # Horizontal lines
-        for i in range(1, rows):
-            y = int(i * row_step)
+        # how many cells needed to cover full image
+        cols_needed = int(math.ceil(width / cell_size))
+        rows_needed = int(math.ceil(height / cell_size))
+
+        # draw horizontal lines (y)
+        for r in range(rows_needed + 1):
+            y = int(round(r * cell_size))
+            if y > height:
+                y = height
             draw.line([(0, y), (width, y)], fill=color, width=1)
 
-        # Vertical lines
-        for i in range(1, cols):
-            x = int(i * col_step)
+        # draw vertical lines (x)
+        for c in range(cols_needed + 1):
+            x = int(round(c * cell_size))
+            if x > width:
+                x = width
             draw.line([(x, 0), (x, height)], fill=color, width=1)
 
         return img
@@ -801,7 +809,7 @@ class GridMaker(ctk.CTk):
         # Row 11 & 12: Grid Row Count Slider
         # ------------------------------
         ctk.CTkLabel(
-            self.main_frame, text="7. Grid Row Count (Horizontal Lines, 0-400):", font=ctk.CTkFont(weight="bold")
+            self.main_frame, text="7. Grid Cell Count (Square Grid, 0-400):", font=ctk.CTkFont(weight="bold")
         ).grid(row=12, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
         self.rows_slider = self._create_slider(
             frame=self.main_frame,
@@ -809,23 +817,7 @@ class GridMaker(ctk.CTk):
             key="grid_rows",
             slider_var=self.settings["grid_rows"],
             from_=0,
-            to=400,
-            format_spec="{:.0f}",
-        )
-
-        # ------------------------------
-        # Row 13 & 14: Grid Column Count Slider
-        # ------------------------------
-        ctk.CTkLabel(
-            self.main_frame, text="8. Grid Column Count (Vertical Lines, 0-400):", font=ctk.CTkFont(weight="bold")
-        ).grid(row=14, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
-        self.cols_slider = self._create_slider(
-            frame=self.main_frame,
-            row=15,
-            key="grid_cols",
-            slider_var=self.settings["grid_cols"],
-            from_=0,
-            to=400,
+            to=100,
             format_spec="{:.0f}",
         )
 
@@ -1139,7 +1131,6 @@ class GridMaker(ctk.CTk):
         self.v_padding_slider.configure(state=state)
         self.zoom_slider.configure(state=state)
         self.rows_slider.configure(state=state)
-        self.cols_slider.configure(state=state)
 
     def start_process(self):
         """
@@ -1190,7 +1181,7 @@ class GridMaker(ctk.CTk):
             "zoom_factor": self.settings["zoom_factor"].get(),
             "grid_color": self.settings["grid_color"].get(),
             "grid_rows": self.settings["grid_rows"].get(),
-            "grid_cols": self.settings["grid_cols"].get(),
+            "grid_cols": self.settings["grid_rows"].get(),
             "show_grid_numbers": self.settings["show_grid_numbers"].get(),
         }
 
@@ -1286,7 +1277,7 @@ class GridMaker(ctk.CTk):
         width, height = img.size
 
         rows = self.settings["grid_rows"].get()
-        cols = self.settings["grid_cols"].get()
+        cols = rows  # always square grid
         color = self.settings["grid_color"].get()
 
         # --- Skip if grid disabled ---
@@ -1400,7 +1391,7 @@ class GridMaker(ctk.CTk):
         # Grid settings
         color = settings["grid_color"]
         rows = settings["grid_rows"]
-        cols = settings["grid_cols"]
+        cols = rows  # enforce square grid
 
         # 3. Draw Grid
         img = self._draw_grid(img, rows, cols, color)
