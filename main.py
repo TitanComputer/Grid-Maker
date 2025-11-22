@@ -12,7 +12,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.7.0"
+APP_VERSION = "1.8.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -351,6 +351,31 @@ class GridMaker(ctk.CTk):
         else:
             self.next_btn.configure(state="normal")
 
+    def get_unique_path(self, file_path: str) -> str:
+        """
+        Returns a unique file path by appending _01, _02, ... if needed.
+        Example:
+            test.png -> test.png
+            (exists) -> test_01.png
+            (exists) -> test_02.png
+        """
+        dir_name = os.path.dirname(file_path)
+        base = os.path.basename(file_path)
+        name, ext = os.path.splitext(base)
+
+        # If the file does NOT already exist → return original
+        if not os.path.exists(file_path):
+            return file_path
+
+        # Otherwise add counters
+        counter = 1
+        while True:
+            new_name = f"{name}_{counter:02d}{ext}"
+            new_path = os.path.join(dir_name, new_name)
+            if not os.path.exists(new_path):
+                return new_path
+            counter += 1
+
     def _preview_save(self):
         """Save the currently previewed image with grid applied."""
         try:
@@ -365,7 +390,8 @@ class GridMaker(ctk.CTk):
             # build output name
             base = os.path.basename(current_file)
             name, ext = os.path.splitext(base)
-            save_path = os.path.join(output_folder, f"{name}_preview_grid{ext}")
+
+            save_path = self.get_unique_path(os.path.join(output_folder, f"{name}_preview_grid{ext}"))
 
             # self.last_render holds the last rendered PIL image (from _render_preview_image)
             if hasattr(self, "last_render") and self.last_render is not None:
@@ -1163,7 +1189,7 @@ class GridMaker(ctk.CTk):
             safe_base_name = base_name.replace(" ", "_").replace("(", "").replace(")", "")
             # Ensure multiple underscores are not collapsed, as a simple replace is safer
             output_filename = f"grid_{safe_base_name}{ext}"
-            output_path = os.path.join(output_dir, output_filename)
+            output_path = self.get_unique_path(os.path.join(output_dir, output_filename))
             # --- FILENAME SANITIZATION FIX END ---
 
             try:
