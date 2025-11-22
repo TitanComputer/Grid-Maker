@@ -118,8 +118,20 @@ jobs:
           $pwd = ConvertTo-SecureString -String "P@ssw0rd123!" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "signcert.pfx" -Password $pwd | Out-Null
 
-          Write-Host "Signing Grid-Maker.exe ..."
-          signtool sign /f "signcert.pfx" /p "P@ssw0rd123!" /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "Grid-Maker.exe"
+          # Find signtool.exe
+          Write-Host "Searching for signtool.exe..."
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          if (-not $signtool) {
+            Write-Error "signtool.exe not found!"
+            exit 1
+          }
+
+          Write-Host "Using signtool at: $($signtool.FullName)"
+
+          # Sign the executable
+          & "$($signtool.FullName)" sign /f "signcert.pfx" /p "P@ssw0rd123!" `
+            /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "Grid-Maker.exe"
 
 
       - name: Upload artifact
