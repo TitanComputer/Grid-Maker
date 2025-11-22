@@ -118,13 +118,16 @@ jobs:
           $pwd = ConvertTo-SecureString -String "P@ssw0rd123!" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath "signcert.pfx" -Password $pwd | Out-Null
 
-          # Find signtool.exe
-          Write-Host "Searching for signtool.exe..."
-          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          # Find signtool.exe (x64 only)
+          Write-Host "Searching for signtool.exe (x64 only)..."
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue |
+                      Where-Object { $_.FullName -match '\\x64\\' } |
+                      Select-Object -First 1
 
-          if (-not $signtool) {
-            Write-Error "signtool.exe not found!"
-            exit 1
+          if ($null -eq $signtool) {
+              Write-Error "x64 signtool.exe not found!"
+          } else {
+              Write-Host "Using signtool at: $($signtool.FullName)"
           }
 
           Write-Host "Using signtool at: $($signtool.FullName)"
