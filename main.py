@@ -12,7 +12,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.8.0"
+APP_VERSION = "1.9.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -251,6 +251,36 @@ class GridMaker(ctk.CTk):
         except Exception as e:
             print(f"Error saving configuration: {e}")
 
+    def _draw_grid(self, img, rows, cols, color):
+        """
+        Draws a grid on the given PIL image object.
+        Returns the modified image.
+        If rows or cols is zero, grid drawing is skipped.
+        """
+
+        # If grid disabled
+        if rows <= 0 or cols <= 0:
+            return img
+
+        width, height = img.size
+        draw = ImageDraw.Draw(img)
+
+        # Step sizes (safe: rows/cols won't be zero)
+        row_step = height / rows
+        col_step = width / cols
+
+        # Horizontal lines
+        for i in range(1, rows):
+            y = int(i * row_step)
+            draw.line([(0, y), (width, y)], fill=color, width=1)
+
+        # Vertical lines
+        for i in range(1, cols):
+            x = int(i * col_step)
+            draw.line([(x, 0), (x, height)], fill=color, width=1)
+
+        return img
+
     def _render_preview_image(self):
         """Render the currently selected image into the preview window using CTkImage."""
         if not (hasattr(self, "preview_files") and self.preview_files):
@@ -285,18 +315,7 @@ class GridMaker(ctk.CTk):
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         # Draw grid
-        draw = ImageDraw.Draw(img)
-        width, height = img.size
-        row_step = height / rows
-        col_step = width / cols
-
-        for i in range(1, rows):
-            y = int(i * row_step)
-            draw.line([(0, y), (width, y)], fill=grid_color, width=1)
-
-        for i in range(1, cols):
-            x = int(i * col_step)
-            draw.line([(x, 0), (x, height)], fill=grid_color, width=1)
+        img = self._draw_grid(img, rows, cols, grid_color)
 
         # --- Apply grid numbers if enabled
         if self.settings["show_grid_numbers"].get():
@@ -379,7 +398,7 @@ class GridMaker(ctk.CTk):
     def _preview_save(self):
         """Save the currently previewed image with grid applied."""
         try:
-            # self.preview_window.grab_set()
+            self.preview_window.grab_set()
             self._preview_restyle()
             current_file = self.preview_files[self.preview_index]
 
@@ -412,8 +431,8 @@ class GridMaker(ctk.CTk):
 
         except Exception as e:
             messagebox.showerror("Save Error", str(e), parent=self.preview_window)
-        # finally:
-        #     self.preview_window.grab_release()
+        finally:
+            self.preview_window.grab_release()
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
@@ -782,14 +801,14 @@ class GridMaker(ctk.CTk):
         # Row 11 & 12: Grid Row Count Slider
         # ------------------------------
         ctk.CTkLabel(
-            self.main_frame, text="7. Grid Row Count (Horizontal Lines, 10-400):", font=ctk.CTkFont(weight="bold")
+            self.main_frame, text="7. Grid Row Count (Horizontal Lines, 0-400):", font=ctk.CTkFont(weight="bold")
         ).grid(row=12, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
         self.rows_slider = self._create_slider(
             frame=self.main_frame,
             row=13,
             key="grid_rows",
             slider_var=self.settings["grid_rows"],
-            from_=10,
+            from_=0,
             to=400,
             format_spec="{:.0f}",
         )
@@ -798,14 +817,14 @@ class GridMaker(ctk.CTk):
         # Row 13 & 14: Grid Column Count Slider
         # ------------------------------
         ctk.CTkLabel(
-            self.main_frame, text="8. Grid Column Count (Vertical Lines, 10-400):", font=ctk.CTkFont(weight="bold")
+            self.main_frame, text="8. Grid Column Count (Vertical Lines, 0-400):", font=ctk.CTkFont(weight="bold")
         ).grid(row=14, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
         self.cols_slider = self._create_slider(
             frame=self.main_frame,
             row=15,
             key="grid_cols",
             slider_var=self.settings["grid_cols"],
-            from_=10,
+            from_=0,
             to=400,
             format_spec="{:.0f}",
         )
@@ -1270,6 +1289,10 @@ class GridMaker(ctk.CTk):
         cols = self.settings["grid_cols"].get()
         color = self.settings["grid_color"].get()
 
+        # --- Skip if grid disabled ---
+        if rows <= 0 or cols <= 0:
+            return img
+
         try:
             font_size = max(14, min(width, height) // 40)
             font = ImageFont.truetype("arial.ttf", font_size)
@@ -1374,29 +1397,13 @@ class GridMaker(ctk.CTk):
         # Recalculate size after resize
         width, height = img.size
 
-        # 3. Draw Grid
-        draw = ImageDraw.Draw(img)
-        color = settings["grid_color"]
-
         # Grid settings
+        color = settings["grid_color"]
         rows = settings["grid_rows"]
         cols = settings["grid_cols"]
 
-        # Calculate step size for lines
-        row_step = height / rows
-        col_step = width / cols
-
-        # Draw Horizontal Lines (Rows)
-        for i in range(1, rows):
-            y = int(i * row_step)
-            # Draw line from (0, y) to (width, y)
-            draw.line([(0, y), (width, y)], fill=color, width=1)
-
-        # Draw Vertical Lines (Columns)
-        for i in range(1, cols):
-            x = int(i * col_step)
-            # Draw line from (x, 0) to (x, height)
-            draw.line([(x, 0), (x, height)], fill=color, width=1)
+        # 3. Draw Grid
+        img = self._draw_grid(img, rows, cols, color)
 
         if settings.get("show_grid_numbers", False):
             img = self._apply_grid_numbers(img)
