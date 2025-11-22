@@ -806,7 +806,7 @@ class GridMaker(ctk.CTk):
         self.num_bg_color_display.grid(row=0, column=3, padx=(10, 0), sticky="w")
 
         # ------------------------------
-        # Row 11 & 12: Grid Row Count Slider
+        # Row 11 & 12: Grid Cell Count Slider
         # ------------------------------
         ctk.CTkLabel(
             self.main_frame, text="7. Grid Cell Count (Square Grid, 0-400):", font=ctk.CTkFont(weight="bold")
@@ -817,7 +817,7 @@ class GridMaker(ctk.CTk):
             key="grid_rows",
             slider_var=self.settings["grid_rows"],
             from_=0,
-            to=100,
+            to=400,
             format_spec="{:.0f}",
         )
 
