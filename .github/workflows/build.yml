@@ -94,7 +94,7 @@ jobs:
             --file-version=${{ env.version }} \
             --product-version=${{ env.version }} \
             --file-description="Grid Maker is a desktop tool for batch-processing images and generating customizable grid overlays, commonly used for knitting and crochet pattern design." \
-            --copyright="Copyright (c) ${{ env.YEAR }} Titan Computer. All rights reserved."
+            --copyright="Copyright (c) ${{ env.YEAR }} Titan Computer. All rights reserved." \
             --trademarks="Grid Maker is a trademark of Titan Computer." \
             main.py
 
