@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.11.1"
+APP_VERSION = "1.12.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -29,6 +29,7 @@ DEFAULT_CONFIG = {
     "show_grid_numbers": True,
     "grid_number_text_color": "#000000",
     "grid_number_bg_color": "#FFFFFF",
+    "grid_disabled": False,
 }
 
 # Determine configuration directory based on OS
@@ -131,6 +132,7 @@ class GridMaker(ctk.CTk):
             "show_grid_numbers": ctk.BooleanVar(value=DEFAULT_CONFIG["show_grid_numbers"]),
             "grid_number_text_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_text_color"]),
             "grid_number_bg_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_bg_color"]),
+            "grid_disabled": ctk.BooleanVar(value=DEFAULT_CONFIG["grid_disabled"]),
         }
         # cols no longer has its own slider → always same as rows
         self.settings["grid_cols"] = self.settings["grid_rows"]
@@ -145,6 +147,7 @@ class GridMaker(ctk.CTk):
         # --- UI Setup ---
         self.grid_columnconfigure(0, weight=1)
         self._create_widgets()
+        self._on_grid_toggle()
         self._update_preview_button_state()
 
         # --- Lock Updater Control START ---
@@ -241,6 +244,7 @@ class GridMaker(ctk.CTk):
             "show_grid_numbers": self.settings["show_grid_numbers"].get(),
             "grid_number_text_color": self.settings["grid_number_text_color"].get(),
             "grid_number_bg_color": self.settings["grid_number_bg_color"].get(),
+            "grid_disabled": self.settings["grid_disabled"].get(),
         }
 
         try:
@@ -256,6 +260,9 @@ class GridMaker(ctk.CTk):
         Tries to keep cells square and covers the entire image.
         If rows or cols is zero, grid drawing is skipped.
         """
+        # --- Skip if grid disabled ---
+        if self.settings.get("grid_disabled").get():
+            return img
 
         if rows <= 0 or cols <= 0:
             return img
@@ -605,8 +612,39 @@ class GridMaker(ctk.CTk):
         if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
             self._preview_restyle()
 
-    # --- UI Creation and Layout Methods ---
+    def _on_grid_toggle(self):
+        """Disables/enables all grid-related UI when toggle is switched."""
+        disabled = self.settings["grid_disabled"].get()
 
+        state = "disabled" if disabled else "normal"
+
+        # Buttons
+        self.color_button.configure(state=state)
+        # self.color_display is a CTkFrame, can't set state
+        # We can optionally gray it out
+        self.color_display.configure(fg_color="#d3d3d3" if disabled else self.settings["grid_color"].get())
+
+        # Grid number options
+        self.grid_number_toggle.configure(state=state)
+        self.num_text_color_button.configure(state=state)
+        self.num_text_color_display.configure(
+            fg_color="#d3d3d3" if disabled else self.settings["grid_number_text_color"].get()
+        )
+        self.num_bg_color_button.configure(state=state)
+        self.num_bg_color_display.configure(
+            fg_color="#d3d3d3" if disabled else self.settings["grid_number_bg_color"].get()
+        )
+
+        # Grid rows slider
+        self.rows_slider.configure(state=state)
+        # plus/minus buttons
+        for btn in [self.minus_btn, self.plus_btn]:
+            btn.configure(state=state)
+
+        # Restyle preview
+        self._restyle_checker()
+
+    # --- UI Creation and Layout Methods ---
     def _create_widgets(self):
         """Creates all UI widgets and initializes their grid layout."""
 
@@ -702,6 +740,23 @@ class GridMaker(ctk.CTk):
             row=10, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
         )
 
+        # Toggle frame on the right side of the label
+        grid_toggle_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        grid_toggle_frame.grid(row=10, column=0, columnspan=2, padx=(337, 0), pady=(10, 5))
+
+        disable_toggle_label = ctk.CTkLabel(grid_toggle_frame, text="Disable Grid", font=ctk.CTkFont(weight="bold"))
+        disable_toggle_label.grid(row=0, column=0, padx=(0, 10), sticky="e")
+
+        self.grid_disable_toggle = ctk.CTkSwitch(
+            grid_toggle_frame,
+            text="",
+            variable=self.settings["grid_disabled"],
+            onvalue=True,
+            offvalue=False,
+            command=self._on_grid_toggle,
+        )
+        self.grid_disable_toggle.grid(row=0, column=1, sticky="e")
+
         color_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         color_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
         color_frame.grid_columnconfigure(0, weight=0)
@@ -739,7 +794,7 @@ class GridMaker(ctk.CTk):
             font=ctk.CTkFont(weight="bold"),
         ).grid(row=12, column=0, columnspan=2, pady=(15, 5), sticky="w", padx=20)
 
-        # Toggle frame (but NOT in column=1)
+        # Toggle frame
         toggle_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         toggle_frame.grid(row=12, column=0, columnspan=2, padx=(225, 0), pady=(15, 5))
 
@@ -851,7 +906,7 @@ class GridMaker(ctk.CTk):
             update_grid_rows_label(new)
             self._restyle_checker()
 
-        minus_btn = ctk.CTkButton(
+        self.minus_btn = ctk.CTkButton(
             grid_cells_frame,
             text="-",
             width=40,
@@ -859,7 +914,7 @@ class GridMaker(ctk.CTk):
             font=ctk.CTkFont(size=18, weight="bold"),
             command=lambda: change_by(-STEP),
         )
-        minus_btn.grid(row=0, column=0, padx=(0, 8))
+        self.minus_btn.grid(row=0, column=0, padx=(0, 8))
 
         self.rows_slider = ctk.CTkSlider(
             grid_cells_frame,
@@ -872,7 +927,7 @@ class GridMaker(ctk.CTk):
         self.rows_slider.grid(row=0, column=1, sticky="ew")
         self.rows_slider.bind("<ButtonRelease-1>", self.on_release)
 
-        plus_btn = ctk.CTkButton(
+        self.plus_btn = ctk.CTkButton(
             grid_cells_frame,
             text="+",
             width=40,
@@ -880,7 +935,7 @@ class GridMaker(ctk.CTk):
             font=ctk.CTkFont(size=18, weight="bold"),
             command=lambda: change_by(STEP),
         )
-        plus_btn.grid(row=0, column=2, padx=(8, 0))
+        self.plus_btn.grid(row=0, column=2, padx=(8, 0))
 
         self.grid_rows_label = ctk.CTkLabel(grid_cells_frame, text="", width=60)
         self.grid_rows_label.grid(row=0, column=3, padx=(10, 0))
@@ -1142,6 +1197,9 @@ class GridMaker(ctk.CTk):
         self.color_display.configure(fg_color=self.settings["grid_color"].get())
         self.num_text_color_display.configure(fg_color=self.settings["grid_number_text_color"].get())
         self.num_bg_color_display.configure(fg_color=self.settings["grid_number_bg_color"].get())
+        # Reset grid toggle
+        self.grid_disable_toggle.configure(state="normal" if not self.settings["grid_disabled"].get() else "disabled")
+        self._on_grid_toggle()  # ensure UI is consistent
 
         # Reset Progress Bar and Label
         self.progress_bar.set(0)
@@ -1347,6 +1405,10 @@ class GridMaker(ctk.CTk):
         rows = self.settings["grid_rows"].get()
         cols = rows  # always square grid
         color = self.settings["grid_color"].get()
+
+        # --- Skip if grid disabled ---
+        if self.settings.get("grid_disabled").get():
+            return img
 
         # --- Skip if grid disabled ---
         if rows <= 0 or cols <= 0:
