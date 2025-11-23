@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.12.0"
+APP_VERSION = "1.13.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -30,6 +30,7 @@ DEFAULT_CONFIG = {
     "grid_number_text_color": "#000000",
     "grid_number_bg_color": "#FFFFFF",
     "grid_disabled": False,
+    "grid_thickness": 1,
 }
 
 # Determine configuration directory based on OS
@@ -133,6 +134,7 @@ class GridMaker(ctk.CTk):
             "grid_number_text_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_text_color"]),
             "grid_number_bg_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_bg_color"]),
             "grid_disabled": ctk.BooleanVar(value=DEFAULT_CONFIG["grid_disabled"]),
+            "grid_thickness": ctk.IntVar(value=DEFAULT_CONFIG["grid_thickness"]),
         }
         # cols no longer has its own slider → always same as rows
         self.settings["grid_cols"] = self.settings["grid_rows"]
@@ -245,6 +247,7 @@ class GridMaker(ctk.CTk):
             "grid_number_text_color": self.settings["grid_number_text_color"].get(),
             "grid_number_bg_color": self.settings["grid_number_bg_color"].get(),
             "grid_disabled": self.settings["grid_disabled"].get(),
+            "grid_thickness": self.settings["grid_thickness"].get(),
         }
 
         try:
@@ -270,6 +273,9 @@ class GridMaker(ctk.CTk):
         width, height = img.size
         draw = ImageDraw.Draw(img)
 
+        # grid thickness
+        thickness = self.settings["grid_thickness"].get()
+
         # base square size (try to keep cells square)
         cell_w = width / cols
         cell_h = height / rows
@@ -282,16 +288,18 @@ class GridMaker(ctk.CTk):
         # draw horizontal lines (y)
         for r in range(rows_needed):
             y = r * cell_size
-            draw.line([(0, y), (width, y)], fill=color, width=1)
+            draw.line([(0, y), (width, y)], fill=color, width=thickness)
 
-        draw.line([(0, height), (width, height)], fill=color, width=1)
+        # draw last horizontal line
+        draw.line([(0, height), (width, height)], fill=color, width=thickness)
 
         # draw vertical lines (x)
         for c in range(cols_needed):
             x = c * cell_size
-            draw.line([(x, 0), (x, height)], fill=color, width=1)
+            draw.line([(x, 0), (x, height)], fill=color, width=thickness)
 
-        draw.line([(width, 0), (width, height)], fill=color, width=1)
+        # draw last vertical line
+        draw.line([(width, 0), (width, height)], fill=color, width=thickness)
 
         return img
 
@@ -637,11 +645,20 @@ class GridMaker(ctk.CTk):
 
         # Grid rows slider
         self.rows_slider.configure(state=state)
+
+        # Grid thickness slider
+        self.grid_thickness_slider.configure(state=state)
+
         # plus/minus buttons
         for btn in [self.minus_btn, self.plus_btn]:
             btn.configure(state=state)
 
         # Restyle preview
+        self._restyle_checker()
+
+    def _on_thickness_change(self, value):
+        self.settings["grid_thickness"].set(int(value))
+        self.grid_thickness_label.configure(text=str(int(value)))
         self._restyle_checker()
 
     # --- UI Creation and Layout Methods ---
@@ -734,15 +751,15 @@ class GridMaker(ctk.CTk):
         )
 
         # ------------------------------
-        # Row 10 & 11: Color Picker + Toggle
+        # Row 9 : Grid Toggle
         # ------------------------------
         ctk.CTkLabel(self.main_frame, text="5. Grid Line Settings:", font=ctk.CTkFont(weight="bold")).grid(
-            row=10, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
+            row=9, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
         )
 
         # Toggle frame on the right side of the label
         grid_toggle_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        grid_toggle_frame.grid(row=10, column=0, columnspan=2, padx=(337, 0), pady=(10, 5))
+        grid_toggle_frame.grid(row=9, column=0, columnspan=2, padx=(337, 0), pady=(10, 5))
 
         disable_toggle_label = ctk.CTkLabel(grid_toggle_frame, text="Disable Grid", font=ctk.CTkFont(weight="bold"))
         disable_toggle_label.grid(row=0, column=0, padx=(0, 10), sticky="e")
@@ -757,6 +774,31 @@ class GridMaker(ctk.CTk):
         )
         self.grid_disable_toggle.grid(row=0, column=1, sticky="e")
 
+        # ------------------------------
+        # Row 10: Grid Line Thickness
+        # ------------------------------
+        thickness_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        thickness_frame.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
+        thickness_frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(thickness_frame, text="Grid Line Thickness:", font=ctk.CTkFont(weight="bold")).grid(
+            row=0, column=0, sticky="w"
+        )
+
+        # slider
+        self.grid_thickness_slider = ctk.CTkSlider(
+            thickness_frame, from_=1, to=10, number_of_steps=9, command=self._on_thickness_change
+        )
+        self.grid_thickness_slider.set(self.settings["grid_thickness"].get())
+        self.grid_thickness_slider.grid(row=0, column=1, sticky="ew", padx=(10, 10))
+
+        # value label at the right side
+        self.grid_thickness_label = ctk.CTkLabel(thickness_frame, text=str(self.settings["grid_thickness"].get()))
+        self.grid_thickness_label.grid(row=0, column=2, sticky="e", padx=(10, 35))
+
+        # ------------------------------
+        # Row 11 : Grid Line Color
+        # ------------------------------
         color_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         color_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
         color_frame.grid_columnconfigure(0, weight=0)
@@ -1197,6 +1239,11 @@ class GridMaker(ctk.CTk):
         self.color_display.configure(fg_color=self.settings["grid_color"].get())
         self.num_text_color_display.configure(fg_color=self.settings["grid_number_text_color"].get())
         self.num_bg_color_display.configure(fg_color=self.settings["grid_number_bg_color"].get())
+
+        # Reset grid thickness slider
+        self.grid_thickness_slider.set(self.settings["grid_thickness"].get())
+        self.grid_thickness_label.configure(text=self.settings["grid_thickness"].get())
+
         # Reset grid toggle
         self.grid_disable_toggle.configure(state="normal" if not self.settings["grid_disabled"].get() else "disabled")
         self._on_grid_toggle()  # ensure UI is consistent
