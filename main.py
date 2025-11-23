@@ -13,7 +13,7 @@ from idlelib.tooltip import Hovertip
 import webbrowser
 from math import floor
 
-APP_VERSION = "1.10.0"
+APP_VERSION = "1.11.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -274,18 +274,18 @@ class GridMaker(ctk.CTk):
         rows_needed = int(math.ceil(height / cell_size))
 
         # draw horizontal lines (y)
-        for r in range(rows_needed + 1):
-            y = int(round(r * cell_size))
-            if y > height:
-                y = height
+        for r in range(rows_needed):
+            y = r * cell_size
             draw.line([(0, y), (width, y)], fill=color, width=1)
 
+        draw.line([(0, height), (width, height)], fill=color, width=1)
+
         # draw vertical lines (x)
-        for c in range(cols_needed + 1):
-            x = int(round(c * cell_size))
-            if x > width:
-                x = width
+        for c in range(cols_needed):
+            x = c * cell_size
             draw.line([(x, 0), (x, height)], fill=color, width=1)
+
+        draw.line([(width, 0), (width, height)], fill=color, width=1)
 
         return img
 
