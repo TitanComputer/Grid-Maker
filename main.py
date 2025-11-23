@@ -308,7 +308,7 @@ class GridMaker(ctk.CTk):
         zoom = self.settings["zoom_factor"].get()
         grid_color = self.settings["grid_color"].get()
         rows = self.settings["grid_rows"].get()
-        cols = self.settings["grid_cols"].get()
+        cols = rows  # always square grid
 
         # Crop padding
         width, height = img.size
@@ -808,18 +808,83 @@ class GridMaker(ctk.CTk):
         # ------------------------------
         # Row 11 & 12: Grid Cell Count Slider
         # ------------------------------
+
         ctk.CTkLabel(
-            self.main_frame, text="7. Grid Cell Count (Square Grid, 0-400):", font=ctk.CTkFont(weight="bold")
-        ).grid(row=12, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
-        self.rows_slider = self._create_slider(
-            frame=self.main_frame,
-            row=13,
-            key="grid_rows",
-            slider_var=self.settings["grid_rows"],
-            from_=0,
-            to=400,
-            format_spec="{:.0f}",
+            self.main_frame,
+            text="7. Grid Cell Count (Square Grid, 0-400):",
+            font=ctk.CTkFont(weight="bold"),
+        ).grid(row=12, column=0, columnspan=2, sticky="w", padx=20)
+
+        grid_cells_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        grid_cells_frame.grid(row=13, column=0, columnspan=2, sticky="ew", padx=20, pady=(10, 5))
+        grid_cells_frame.grid_columnconfigure(1, weight=1)
+
+        MIN_CELLS = 0
+        MAX_CELLS = 400
+        STEP = 1
+
+        def clamp(val):
+            return max(MIN_CELLS, min(MAX_CELLS, int(val)))
+
+        def update_grid_rows_label(value):
+            try:
+                numeric = float(value)
+                fmt = getattr(self, "grid_rows_format")
+                lbl = getattr(self, "grid_rows_label")
+                lbl.configure(text=fmt.format(numeric))
+            except:
+                pass
+
+        def on_slider_change(value):
+            v = clamp(float(value))
+            self.settings["grid_rows"].set(v)
+            update_grid_rows_label(v)
+
+        def change_by(delta):
+            cur = self.settings["grid_rows"].get()
+            new = clamp(cur + delta)
+            self.settings["grid_rows"].set(new)
+            self.rows_slider.set(new)
+            update_grid_rows_label(new)
+            self._restyle_checker()
+
+        minus_btn = ctk.CTkButton(
+            grid_cells_frame,
+            text="-",
+            width=40,
+            height=32,
+            font=ctk.CTkFont(size=18, weight="bold"),
+            command=lambda: change_by(-STEP),
         )
+        minus_btn.grid(row=0, column=0, padx=(0, 8))
+
+        self.rows_slider = ctk.CTkSlider(
+            grid_cells_frame,
+            from_=MIN_CELLS,
+            to=MAX_CELLS,
+            variable=self.settings["grid_rows"],
+            command=on_slider_change,
+            number_of_steps=MAX_CELLS - MIN_CELLS,
+        )
+        self.rows_slider.grid(row=0, column=1, sticky="ew")
+        self.rows_slider.bind("<ButtonRelease-1>", self.on_release)
+
+        plus_btn = ctk.CTkButton(
+            grid_cells_frame,
+            text="+",
+            width=40,
+            height=32,
+            font=ctk.CTkFont(size=18, weight="bold"),
+            command=lambda: change_by(STEP),
+        )
+        plus_btn.grid(row=0, column=2, padx=(8, 0))
+
+        self.grid_rows_label = ctk.CTkLabel(grid_cells_frame, text="", width=60)
+        self.grid_rows_label.grid(row=0, column=3, padx=(10, 0))
+        self.grid_rows_format = "{:.0f}"
+
+        # Initial sync
+        update_grid_rows_label(self.settings["grid_rows"].get())
 
         # ------------------------------
         # Row 15 & 16: Progress Bar and Percentage Label
@@ -906,6 +971,10 @@ class GridMaker(ctk.CTk):
         )
         self.reset_button.grid(row=0, column=2, sticky="ew", padx=(10, 0))
 
+    # --- Bind mouse release to call _preview_restyle ---
+    def on_release(self, event):
+        self._restyle_checker()
+
     def _create_slider(self, frame, row, key, slider_var, from_, to, format_spec, resolution=1):
         """
         Creates a slider and its associated label in the specified frame and row.
@@ -954,11 +1023,7 @@ class GridMaker(ctk.CTk):
         )
         slider.grid(row=0, column=0, sticky="ew")
 
-        # --- Bind mouse release to call _preview_restyle ---
-        def on_release(event):
-            self._restyle_checker()
-
-        slider.bind("<ButtonRelease-1>", on_release)
+        slider.bind("<ButtonRelease-1>", self.on_release)
 
         # Initial label update to set the correct value
         update_label(slider_var.get())
