@@ -2,18 +2,17 @@ import os
 import sys
 import json
 import math
-from PIL import Image, ImageDraw, ImageTk, ImageFont
-import customtkinter as ctk
-from customtkinter import filedialog, CTkImage
-import tkinter as tk
-from tkinter import colorchooser, messagebox
 import time
 import threading
-from idlelib.tooltip import Hovertip
 import webbrowser
-from math import floor
+from PIL import Image, ImageDraw, ImageTk, ImageFont
+import tkinter as tk
+from tkinter import colorchooser, messagebox
+import customtkinter as ctk
+from customtkinter import filedialog, CTkImage
+from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.11.0"
+APP_VERSION = "1.11.1"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -267,7 +266,7 @@ class GridMaker(ctk.CTk):
         # base square size (try to keep cells square)
         cell_w = width / cols
         cell_h = height / rows
-        cell_size = min(cell_w, cell_h)
+        cell_size = max(cell_w, cell_h)
 
         # how many cells needed to cover full image
         cols_needed = int(math.ceil(width / cell_size))
@@ -1019,7 +1018,7 @@ class GridMaker(ctk.CTk):
             to=to,
             variable=slider_var,
             command=update_label,
-            number_of_steps=floor((to - from_) / resolution) if resolution else None,
+            number_of_steps=math.floor((to - from_) / resolution) if resolution else None,
         )
         slider.grid(row=0, column=0, sticky="ew")
 
