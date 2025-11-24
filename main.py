@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.14.1"
+APP_VERSION = "1.14.2"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -855,9 +855,6 @@ class GridMaker(ctk.CTk):
             rbtn.grid(row=0, column=i, padx=10)
             self.grid_highlight_rbtns.append(rbtn)
 
-        # set default to 0 (off)
-        self.settings["grid_highlight_every"].set(0)
-
         # ------------------------------
         # Row 11 : Grid Line Color
         # ------------------------------
@@ -1539,17 +1536,14 @@ class GridMaker(ctk.CTk):
         img = img.convert("RGB")
         width, height = img.size
 
-        rows = self.settings["grid_rows"].get()
-        cols = rows  # always square grid
-        color = self.settings["grid_color"].get()
+        rows_setting = self.settings["grid_rows"].get()
 
-        # --- Skip if grid disabled ---
-        if self.settings.get("grid_disabled").get():
-            return img
-
-        # --- Skip if grid disabled ---
-        if rows <= 0 or cols <= 0:
-            return img
+        if height >= width:
+            rows = rows_setting
+            cols = round(rows * (width / height))
+        else:
+            cols = rows_setting
+            rows = round(cols * (height / width))
 
         try:
             font_size = max(14, min(width, height) // 40)
@@ -1560,8 +1554,9 @@ class GridMaker(ctk.CTk):
             bold_font = None
             font_size = 14
 
-        margin_left = int(max(width * 0.07, font_size * 2.5))
-        margin_top = int(max(height * 0.07, font_size * 2.5))
+        base_margin = int(max(min(width, height) * 0.07, font_size * 2.5))
+        margin_left = base_margin
+        margin_top = base_margin
 
         new_width = width + margin_left
         new_height = height + margin_top
@@ -1614,7 +1609,7 @@ class GridMaker(ctk.CTk):
 
             w, h = text_size(draw, text, f)
             draw.text(
-                (x - w // 2, margin_top - h - max(5, font_size // 2)),
+                (x - w // 2, margin_top - h - max(5, font_size // 2) - 5),
                 text,
                 fill=text_color,
                 font=f,
