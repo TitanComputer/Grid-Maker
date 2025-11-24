@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.13.0"
+APP_VERSION = "1.13.1"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -656,11 +656,6 @@ class GridMaker(ctk.CTk):
         # Restyle preview
         self._restyle_checker()
 
-    def _on_thickness_change(self, value):
-        self.settings["grid_thickness"].set(int(value))
-        self.grid_thickness_label.configure(text=str(int(value)))
-        self._restyle_checker()
-
     # --- UI Creation and Layout Methods ---
     def _create_widgets(self):
         """Creates all UI widgets and initializes their grid layout."""
@@ -779,22 +774,35 @@ class GridMaker(ctk.CTk):
         # ------------------------------
         thickness_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         thickness_frame.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
-        thickness_frame.grid_columnconfigure(1, weight=1)
+
+        thickness_frame.grid_columnconfigure(0, weight=0)  # Title Label
+        thickness_frame.grid_columnconfigure(1, weight=1)  # Slider + Value Frame
 
         ctk.CTkLabel(thickness_frame, text="Grid Line Thickness:", font=ctk.CTkFont(weight="bold")).grid(
-            row=0, column=0, sticky="w"
+            row=0, column=0, sticky="w", padx=(0, 10)
         )
 
-        # slider
-        self.grid_thickness_slider = ctk.CTkSlider(
-            thickness_frame, from_=1, to=10, number_of_steps=9, command=self._on_thickness_change
+        self.grid_thickness_slider = self._create_slider(
+            frame=thickness_frame,
+            row=0,
+            key="grid_thickness",
+            slider_var=self.settings["grid_thickness"],
+            from_=1,
+            to=10,
+            format_spec="{:.0f}",
+            resolution=1,
         )
-        self.grid_thickness_slider.set(self.settings["grid_thickness"].get())
-        self.grid_thickness_slider.grid(row=0, column=1, sticky="ew", padx=(10, 10))
 
-        # value label at the right side
-        self.grid_thickness_label = ctk.CTkLabel(thickness_frame, text=str(self.settings["grid_thickness"].get()))
-        self.grid_thickness_label.grid(row=0, column=2, sticky="e", padx=(10, 35))
+        slider_and_value_frame = self.grid_thickness_slider.master
+
+        slider_and_value_frame.grid_configure(
+            row=0,
+            column=1,
+            columnspan=1,
+            sticky="ew",
+            padx=(0, 0),
+            pady=(0, 0),
+        )
 
         # ------------------------------
         # Row 11 : Grid Line Color
