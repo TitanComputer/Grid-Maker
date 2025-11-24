@@ -1411,7 +1411,13 @@ class GridMaker(ctk.CTk):
 
         self.total_files = len(files)
         if self.total_files == 0:
-            self.after(0, lambda: messagebox.showinfo("Info", "No supported images found in the selected folder."))
+            self.after(
+                0,
+                lambda: [
+                    messagebox.showinfo("Info", "No supported images found in the selected folder."),
+                    self._enable_preview_after_success(),
+                ],
+            )
             self._cleanup_process(success=False)
             self._update_preview_button_state()
             return
@@ -1428,7 +1434,13 @@ class GridMaker(ctk.CTk):
 
         for i, filename in enumerate(files):
             if self.stop_requested:
-                self.after(0, lambda: messagebox.showinfo("Stopped", "Process manually stopped by user."))
+                self.after(
+                    0,
+                    lambda: [
+                        messagebox.showinfo("Stopped", "Process manually stopped by user."),
+                        self._enable_preview_after_success(),
+                    ],
+                )
                 self._cleanup_process(success=False)
                 return
 
@@ -1458,10 +1470,13 @@ class GridMaker(ctk.CTk):
                 print(f"Error processing {filename}: {e}")
                 self.after(
                     0,
-                    lambda: messagebox.showerror(
-                        "Processing Error",
-                        f"Error processing {filename}: {e}\n\nThis may be caused by special characters in the filename. Try renaming the file.",
-                    ),
+                    lambda: [
+                        messagebox.showerror(
+                            "Processing Error",
+                            f"Error processing {filename}: {e}\n\nThis may be caused by special characters in the filename. Try renaming the file.",
+                        ),
+                        self._enable_preview_after_success(),
+                    ],
                 )
                 self._cleanup_process(success=False)
                 return  # Exit process on critical error
