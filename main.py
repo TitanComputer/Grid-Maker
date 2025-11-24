@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.14.0"
+APP_VERSION = "1.14.1"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -433,7 +433,7 @@ class GridMaker(ctk.CTk):
     def _preview_save(self):
         """Save the currently previewed image with grid applied."""
         try:
-            self.preview_window.grab_set()
+            self.attributes("-disabled", True)
             self._preview_restyle()
             current_file = self.preview_files[self.preview_index]
 
@@ -467,7 +467,7 @@ class GridMaker(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Save Error", str(e), parent=self.preview_window)
         finally:
-            self.preview_window.grab_release()
+            self.attributes("-disabled", False)
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
@@ -1074,7 +1074,7 @@ class GridMaker(ctk.CTk):
         # ------------------------------
         self.start_button = ctk.CTkButton(
             self.main_frame,
-            text="Start Process",
+            text="Start Batch Process",
             command=self.toggle_process,
             fg_color="#3B82F6",
             hover_color="#2563EB",
@@ -1379,11 +1379,14 @@ class GridMaker(ctk.CTk):
         self.progress_bar.set(0)
         self.progress_text_var.set("0%")  # Reset text at start
 
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_window.attributes("-disabled", True)
+
         # Configure button for STOP state with new style parameters
         self.after(
             0,
             lambda: self.start_button.configure(
-                text="Stop Process",
+                text="Stop Batch Process",
                 fg_color="red",
                 hover_color="darkred",
                 height=50,
@@ -1465,6 +1468,10 @@ class GridMaker(ctk.CTk):
 
         self._cleanup_process(success=True)
 
+    def _enable_preview_after_success(self):
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_window.attributes("-disabled", False)
+
     def _cleanup_process(self, success):
         """Resets the UI state and flags after the process completes or is stopped."""
         self.is_running = False
@@ -1474,7 +1481,7 @@ class GridMaker(ctk.CTk):
         self.after(
             0,
             lambda: self.start_button.configure(
-                text="Start Process",
+                text="Start Batch Process",
                 fg_color="#3B82F6",
                 hover_color="#2563EB",
                 state="normal",
@@ -1491,9 +1498,12 @@ class GridMaker(ctk.CTk):
             # Show success message as requested
             self.after(
                 0,
-                lambda: messagebox.showinfo(
-                    "Success",
-                    f"All images processed successfully!\n\n{self.total_files} files were saved to:\n{os.path.normpath(os.path.join(self.folder_path_var.get(), 'output'))}",
+                lambda: (
+                    messagebox.showinfo(
+                        "Success",
+                        f"All images processed successfully!\n\n{self.total_files} files were saved to:\n{os.path.normpath(os.path.join(self.folder_path_var.get(), 'output'))}",
+                    ),
+                    self._enable_preview_after_success(),
                 ),
             )
         else:
@@ -1683,6 +1693,15 @@ class GridMaker(ctk.CTk):
         top = ctk.CTkToplevel(self)
         top.title("Donate ❤")
         top.resizable(False, False)
+        self.attributes("-disabled", True)
+
+        def top_on_close():
+            self.attributes("-disabled", False)
+            top.destroy()
+            self.lift()
+            self.focus()
+
+        top.protocol("WM_DELETE_WINDOW", top_on_close)
         top.withdraw()
 
         # Set icon safely for CTk
@@ -1695,10 +1714,6 @@ class GridMaker(ctk.CTk):
         x = (top.winfo_screenwidth() // 2) - (width // 2)
         y = (top.winfo_screenheight() // 2) - (height // 2)
         top.geometry(f"{width}x{height}+{x}+{y}")
-
-        # Make modal
-        top.grab_set()
-        top.transient(self)
 
         # Configure grid for Toplevel
         top.grid_columnconfigure(0, weight=1)
