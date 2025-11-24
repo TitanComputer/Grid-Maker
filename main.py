@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.13.1"
+APP_VERSION = "1.14.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
     "grid_number_bg_color": "#FFFFFF",
     "grid_disabled": False,
     "grid_thickness": 1,
+    "grid_highlight_every": 0,
 }
 
 # Determine configuration directory based on OS
@@ -135,6 +136,7 @@ class GridMaker(ctk.CTk):
             "grid_number_bg_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_bg_color"]),
             "grid_disabled": ctk.BooleanVar(value=DEFAULT_CONFIG["grid_disabled"]),
             "grid_thickness": ctk.IntVar(value=DEFAULT_CONFIG["grid_thickness"]),
+            "grid_highlight_every": ctk.IntVar(value=DEFAULT_CONFIG["grid_highlight_every"]),
         }
         # cols no longer has its own slider → always same as rows
         self.settings["grid_cols"] = self.settings["grid_rows"]
@@ -248,6 +250,7 @@ class GridMaker(ctk.CTk):
             "grid_number_bg_color": self.settings["grid_number_bg_color"].get(),
             "grid_disabled": self.settings["grid_disabled"].get(),
             "grid_thickness": self.settings["grid_thickness"].get(),
+            "grid_highlight_every": self.settings["grid_highlight_every"].get(),
         }
 
         try:
@@ -276,6 +279,9 @@ class GridMaker(ctk.CTk):
         # grid thickness
         thickness = self.settings["grid_thickness"].get()
 
+        # grid highlight
+        highlight_every = self.settings["grid_highlight_every"].get()
+
         # base square size (try to keep cells square)
         cell_w = width / cols
         cell_h = height / rows
@@ -288,18 +294,30 @@ class GridMaker(ctk.CTk):
         # draw horizontal lines (y)
         for r in range(rows_needed):
             y = r * cell_size
-            draw.line([(0, y), (width, y)], fill=color, width=thickness)
+            line_thickness = thickness
+            if highlight_every and r % highlight_every == 0:
+                line_thickness += 1
+            draw.line([(0, y), (width, y)], fill=color, width=line_thickness)
 
         # draw last horizontal line
-        draw.line([(0, height), (width, height)], fill=color, width=thickness)
+        line_thickness = thickness
+        if highlight_every and rows_needed % highlight_every == 0:
+            line_thickness += 1
+        draw.line([(0, height), (width, height)], fill=color, width=line_thickness)
 
         # draw vertical lines (x)
         for c in range(cols_needed):
             x = c * cell_size
-            draw.line([(x, 0), (x, height)], fill=color, width=thickness)
+            line_thickness = thickness
+            if highlight_every and c % highlight_every == 0:
+                line_thickness += 1
+            draw.line([(x, 0), (x, height)], fill=color, width=line_thickness)
 
         # draw last vertical line
-        draw.line([(width, 0), (width, height)], fill=color, width=thickness)
+        line_thickness = thickness
+        if highlight_every and cols_needed % highlight_every == 0:
+            line_thickness += 1
+        draw.line([(width, 0), (width, height)], fill=color, width=line_thickness)
 
         return img
 
@@ -653,6 +671,10 @@ class GridMaker(ctk.CTk):
         for btn in [self.minus_btn, self.plus_btn]:
             btn.configure(state=state)
 
+        # Enable/disable highlight radio buttons
+        for rbtn in self.grid_highlight_rbtns:
+            rbtn.configure(state=state)
+
         # Restyle preview
         self._restyle_checker()
 
@@ -701,7 +723,7 @@ class GridMaker(ctk.CTk):
         # ------------------------------
         ctk.CTkLabel(
             self.main_frame, text="2. Horizontal Padding (Left/Right Trim in px):", font=ctk.CTkFont(weight="bold")
-        ).grid(row=2, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
+        ).grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="w", padx=20)
         self.h_padding_slider = self._create_slider(
             frame=self.main_frame,
             row=3,
@@ -717,7 +739,7 @@ class GridMaker(ctk.CTk):
         # ------------------------------
         ctk.CTkLabel(
             self.main_frame, text="3. Vertical Padding (Top/Bottom Trim in px):", font=ctk.CTkFont(weight="bold")
-        ).grid(row=4, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20)
+        ).grid(row=4, column=0, columnspan=2, pady=0, sticky="w", padx=20)
         self.v_padding_slider = self._create_slider(
             frame=self.main_frame,
             row=5,
@@ -732,7 +754,7 @@ class GridMaker(ctk.CTk):
         # Row 6 & 7: Zoom Slider
         # ------------------------------
         ctk.CTkLabel(self.main_frame, text="4. Zoom/Resize Factor:", font=ctk.CTkFont(weight="bold")).grid(
-            row=6, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
+            row=6, column=0, columnspan=2, pady=0, sticky="w", padx=20
         )
         self.zoom_slider = self._create_slider(
             frame=self.main_frame,
@@ -746,15 +768,15 @@ class GridMaker(ctk.CTk):
         )
 
         # ------------------------------
-        # Row 9 : Grid Toggle
+        # Row 8 : Grid Toggle
         # ------------------------------
         ctk.CTkLabel(self.main_frame, text="5. Grid Line Settings:", font=ctk.CTkFont(weight="bold")).grid(
-            row=9, column=0, columnspan=2, pady=(10, 5), sticky="w", padx=20
+            row=8, column=0, columnspan=2, pady=5, sticky="w", padx=20
         )
 
         # Toggle frame on the right side of the label
         grid_toggle_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        grid_toggle_frame.grid(row=9, column=0, columnspan=2, padx=(337, 0), pady=(10, 5))
+        grid_toggle_frame.grid(row=8, column=0, columnspan=2, padx=(337, 0), pady=(10, 5))
 
         disable_toggle_label = ctk.CTkLabel(grid_toggle_frame, text="Disable Grid", font=ctk.CTkFont(weight="bold"))
         disable_toggle_label.grid(row=0, column=0, padx=(0, 10), sticky="e")
@@ -770,10 +792,10 @@ class GridMaker(ctk.CTk):
         self.grid_disable_toggle.grid(row=0, column=1, sticky="e")
 
         # ------------------------------
-        # Row 10: Grid Line Thickness
+        # Row 9: Grid Line Thickness
         # ------------------------------
         thickness_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        thickness_frame.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
+        thickness_frame.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
 
         thickness_frame.grid_columnconfigure(0, weight=0)  # Title Label
         thickness_frame.grid_columnconfigure(1, weight=1)  # Slider + Value Frame
@@ -805,10 +827,47 @@ class GridMaker(ctk.CTk):
         )
 
         # ------------------------------
+        # Row 10: Highlight Grid Lines Every N Lines
+        # ------------------------------
+        highlight_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        highlight_frame.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
+        highlight_frame.grid_columnconfigure(0, weight=1)  # label
+        highlight_frame.grid_columnconfigure(1, weight=0)  # buttons container
+
+        # Label on the left
+        ctk.CTkLabel(highlight_frame, text="Highlight Grid Every X Lines:", font=ctk.CTkFont(weight="bold")).grid(
+            row=0, column=0, sticky="w"
+        )
+
+        # Buttons container
+        buttons_frame = ctk.CTkFrame(highlight_frame, fg_color="transparent")
+        buttons_frame.grid(row=0, column=0, sticky="e", padx=(0, 100))
+        buttons_frame.grid_columnconfigure((0, 1, 2), weight=1)
+
+        self.grid_highlight_rbtns = []
+
+        for i, val in enumerate([0, 5, 10]):
+            rbtn = ctk.CTkRadioButton(
+                buttons_frame,
+                text=str(val) if val != 0 else "Off",
+                variable=self.settings["grid_highlight_every"],
+                value=val,
+                width=15,
+                height=15,
+                font=ctk.CTkFont(weight="bold"),
+                command=self._restyle_checker,  # call restyle on change
+            )
+            rbtn.grid(row=0, column=i, padx=10)
+            self.grid_highlight_rbtns.append(rbtn)
+
+        # set default to 0 (off)
+        self.settings["grid_highlight_every"].set(0)
+
+        # ------------------------------
         # Row 11 : Grid Line Color
         # ------------------------------
         color_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        color_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
+        color_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(5, 5), padx=20)
         color_frame.grid_columnconfigure(0, weight=0)
         color_frame.grid_columnconfigure(1, weight=0)
         color_frame.grid_columnconfigure(2, weight=1)
@@ -1251,6 +1310,9 @@ class GridMaker(ctk.CTk):
         # Reset grid thickness slider
         self.grid_thickness_slider.set(self.settings["grid_thickness"].get())
         self.grid_thickness_label.configure(text=self.settings["grid_thickness"].get())
+
+        # Reset grid highlight every
+        self.settings["grid_highlight_every"].set(DEFAULT_CONFIG["grid_highlight_every"])
 
         # Reset grid toggle
         self.grid_disable_toggle.configure(state="normal" if not self.settings["grid_disabled"].get() else "disabled")
