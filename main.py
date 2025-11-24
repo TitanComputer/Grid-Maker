@@ -266,12 +266,6 @@ class GridMaker(ctk.CTk):
         Tries to keep cells square and covers the entire image.
         If rows or cols is zero, grid drawing is skipped.
         """
-        # --- Skip if grid disabled ---
-        if self.settings.get("grid_disabled").get():
-            return img
-
-        if rows <= 0 or cols <= 0:
-            return img
 
         width, height = img.size
         draw = ImageDraw.Draw(img)
@@ -354,12 +348,13 @@ class GridMaker(ctk.CTk):
         if new_width > 0 and new_height > 0:
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-        # Draw grid
-        img = self._draw_grid(img, rows, cols, grid_color)
-
-        # --- Apply grid numbers if enabled
-        if self.settings["show_grid_numbers"].get():
-            img = self._apply_grid_numbers(img)
+        # --- Skip if grid disabled ---
+        if not self.settings.get("grid_disabled").get() and rows > 0:
+            # Draw grid
+            img = self._draw_grid(img, rows, cols, grid_color)
+            # --- Apply grid numbers if enabled
+            if self.settings["show_grid_numbers"].get():
+                img = self._apply_grid_numbers(img)
 
         # Resize to fit preview window
         try:
@@ -1636,15 +1631,17 @@ class GridMaker(ctk.CTk):
         width, height = img.size
 
         # Grid settings
-        color = settings["grid_color"]
+        grid_color = settings["grid_color"]
         rows = settings["grid_rows"]
         cols = rows  # enforce square grid
 
-        # 3. Draw Grid
-        img = self._draw_grid(img, rows, cols, color)
-
-        if settings.get("show_grid_numbers", False):
-            img = self._apply_grid_numbers(img)
+        # --- Skip if grid disabled ---
+        if not self.settings.get("grid_disabled").get() and rows > 0:
+            # 3. Draw grid
+            img = self._draw_grid(img, rows, cols, grid_color)
+            # --- Apply grid numbers if enabled
+            if self.settings["show_grid_numbers"].get():
+                img = self._apply_grid_numbers(img)
 
         # 4. Save Output
         base_name, ext = os.path.splitext(os.path.basename(output_path))
