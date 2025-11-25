@@ -5,7 +5,7 @@ import math
 import time
 import threading
 import webbrowser
-from PIL import Image, ImageDraw, ImageTk, ImageFont
+from PIL import Image, ImageDraw, ImageTk, ImageFont, ImageFilter
 import tkinter as tk
 from tkinter import colorchooser, messagebox
 import customtkinter as ctk
@@ -32,6 +32,11 @@ DEFAULT_CONFIG = {
     "grid_disabled": False,
     "grid_thickness": 1,
     "grid_highlight_every": 0,
+    "pixel_art_enabled": True,
+    "pixel_art_scale": 8,
+    "pixel_art_palette": "none",
+    "pixel_art_dithering": "none",
+    "pixel_art_sharpen": False,
 }
 
 # Determine configuration directory based on OS
@@ -137,6 +142,11 @@ class GridMaker(ctk.CTk):
             "grid_disabled": ctk.BooleanVar(value=DEFAULT_CONFIG["grid_disabled"]),
             "grid_thickness": ctk.IntVar(value=DEFAULT_CONFIG["grid_thickness"]),
             "grid_highlight_every": ctk.IntVar(value=DEFAULT_CONFIG["grid_highlight_every"]),
+            "pixel_art_enabled": ctk.BooleanVar(value=DEFAULT_CONFIG["pixel_art_enabled"]),
+            "pixel_art_scale": ctk.IntVar(value=DEFAULT_CONFIG["pixel_art_scale"]),
+            "pixel_art_palette": ctk.StringVar(value=DEFAULT_CONFIG["pixel_art_palette"]),
+            "pixel_art_dithering": ctk.StringVar(value=DEFAULT_CONFIG["pixel_art_dithering"]),
+            "pixel_art_sharpen": ctk.BooleanVar(value=DEFAULT_CONFIG["pixel_art_sharpen"]),
         }
         # cols no longer has its own slider → always same as rows
         self.settings["grid_cols"] = self.settings["grid_rows"]
@@ -186,7 +196,7 @@ class GridMaker(ctk.CTk):
         """
         self.update_idletasks()
         width = 500
-        height = 820
+        height = 890
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width // 2) - (width // 2)
@@ -251,6 +261,11 @@ class GridMaker(ctk.CTk):
             "grid_disabled": self.settings["grid_disabled"].get(),
             "grid_thickness": self.settings["grid_thickness"].get(),
             "grid_highlight_every": self.settings["grid_highlight_every"].get(),
+            "pixel_art_enabled": self.settings["pixel_art_enabled"].get(),
+            "pixel_art_scale": self.settings["pixel_art_scale"].get(),
+            "pixel_art_palette": self.settings["pixel_art_palette"].get(),
+            "pixel_art_dithering": self.settings["pixel_art_dithering"].get(),
+            "pixel_art_sharpen": self.settings["pixel_art_sharpen"].get(),
         }
 
         try:
@@ -347,6 +362,10 @@ class GridMaker(ctk.CTk):
         new_height = int(height * zoom)
         if new_width > 0 and new_height > 0:
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # Apply Pixel Art
+        if self.settings["pixel_art_enabled"].get():
+            img = self._apply_pixel_art(img)
 
         # --- Skip if grid disabled ---
         if not self.settings.get("grid_disabled").get() and rows > 0:
@@ -673,6 +692,44 @@ class GridMaker(ctk.CTk):
         # Restyle preview
         self._restyle_checker()
 
+    def _apply_pixel_art(self, img):
+
+        scale = self.settings["pixel_art_scale"].get()
+        palette = self.settings["pixel_art_palette"].get()
+        dith = self.settings["pixel_art_dithering"].get()
+        sharpen = self.settings["pixel_art_sharpen"].get()
+
+        width, height = img.size
+        small_w = max(1, width // scale)
+        small_h = max(1, height // scale)
+
+        # Downscale
+        small = img.resize((small_w, small_h), Image.NEAREST)
+
+        # Palette reduction
+        if palette != "none":
+            if palette == "gameboy":
+                small = small.quantize(colors=4, method=2, dither=1)
+            else:
+                small = small.quantize(colors=int(palette), method=2, dither=1)
+
+        # Dithering modes
+        if dith == "none":
+            pass
+        elif dith == "floyd":
+            small = small.convert("RGB").convert("P", dither=Image.FLOYDSTEINBERG)
+        elif dith == "ordered":
+            small = small.convert("RGB").convert("P", dither=Image.ORDERED)
+
+        # Upscale
+        result = small.resize((width, height), Image.NEAREST)
+
+        # Optional sharpen
+        if sharpen:
+            result = result.filter(ImageFilter.SHARPEN)
+
+        return result
+
     # --- UI Creation and Layout Methods ---
     def _create_widgets(self):
         """Creates all UI widgets and initializes their grid layout."""
@@ -761,6 +818,112 @@ class GridMaker(ctk.CTk):
             format_spec="{:.1f}x",
             resolution=0.1,
         )
+
+        # ============================================================
+        # 5. Pixel Art Settings (Rows 8, 9, 10)
+        # ============================================================
+
+        # ------------------------------
+        # Row 8: Title + Enable Pixel Art Toggle
+        # ------------------------------
+        row8_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        row8_frame.grid(row=8, column=0, columnspan=2, sticky="ew", padx=20, pady=2)
+
+        # Title
+        ctk.CTkLabel(row8_frame, text="5. Pixel Art Settings:", font=ctk.CTkFont(weight="bold")).grid(
+            row=0, column=0, sticky="w"
+        )
+
+        # Enable Pixel Art
+        pixel_toggle_frame = ctk.CTkFrame(row8_frame, fg_color="transparent")
+        pixel_toggle_frame.grid(row=0, column=1, padx=(180, 0))
+
+        ctk.CTkLabel(pixel_toggle_frame, text="Enable Pixel Art", font=ctk.CTkFont(weight="bold")).grid(
+            row=0, column=0, padx=(0, 10)
+        )
+
+        self.pixel_art_toggle = ctk.CTkSwitch(
+            pixel_toggle_frame,
+            text="",
+            variable=self.settings["pixel_art_enabled"],
+            onvalue=True,
+            offvalue=False,
+            command=self._restyle_checker,
+        )
+        self.pixel_art_toggle.grid(row=0, column=1)
+
+        # ------------------------------
+        # Row 9: Pixel Size Slider
+        # ------------------------------
+        pixel_slider_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        pixel_slider_frame.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(0, 5), padx=20)
+
+        # Configure columns: 0=Label, 1=Slider+Value
+        pixel_slider_frame.grid_columnconfigure(0, weight=0)
+        pixel_slider_frame.grid_columnconfigure(1, weight=1)
+
+        # Title Label
+        ctk.CTkLabel(pixel_slider_frame, text="Pixel Size (Scale):", font=ctk.CTkFont(weight="bold")).grid(
+            row=0, column=0, sticky="w", padx=(0, 10)
+        )
+
+        # Slider
+        self.pixel_scale_slider = self._create_slider(
+            frame=pixel_slider_frame,
+            row=0,
+            key="pixel_art_scale",
+            slider_var=self.settings["pixel_art_scale"],
+            from_=2,
+            to=50,
+            format_spec="{:.0f}",
+            resolution=1,
+        )
+
+        # Place slider + value frame in column 1
+        slider_and_value_frame = self.pixel_scale_slider.master
+        slider_and_value_frame.grid_configure(row=0, column=1, sticky="ew", padx=(0, 0), pady=(0, 0))
+
+        # ------------------------------
+        # Row 10: Palette + Dithering + Sharpen Toggle
+        # ------------------------------
+        row10_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        row10_frame.grid(row=10, column=0, columnspan=2, sticky="ew", padx=20, pady=(10, 10))
+
+        # Palette
+        ctk.CTkLabel(row10_frame, text="Palette:").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        self.pixel_palette_option = ctk.CTkOptionMenu(
+            row10_frame,
+            variable=self.settings["pixel_art_palette"],
+            values=["none", "16", "32", "64", "gameboy"],
+            command=lambda v: self._restyle_checker(),
+        )
+        self.pixel_palette_option.grid(row=0, column=1, sticky="w", padx=(0, 40))
+
+        # Dithering
+        ctk.CTkLabel(row10_frame, text="Dithering:").grid(row=0, column=2, sticky="w", padx=(0, 10))
+        self.pixel_dither_option = ctk.CTkOptionMenu(
+            row10_frame,
+            variable=self.settings["pixel_art_dithering"],
+            values=["none", "floyd", "ordered"],
+            command=lambda v: self._restyle_checker(),
+        )
+        self.pixel_dither_option.grid(row=0, column=3, sticky="w", padx=(0, 40))
+
+        # Sharpen Toggle
+        sharpen_frame = ctk.CTkFrame(row10_frame, fg_color="transparent")
+        sharpen_frame.grid(row=0, column=2, padx=(0, 0))
+
+        ctk.CTkLabel(sharpen_frame, text="Sharpen", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=(0, 10))
+
+        self.pixel_sharpen_toggle = ctk.CTkSwitch(
+            sharpen_frame,
+            text="",
+            variable=self.settings["pixel_art_sharpen"],
+            onvalue=True,
+            offvalue=False,
+            command=self._restyle_checker,
+        )
+        self.pixel_sharpen_toggle.grid(row=0, column=1)
 
         # ------------------------------
         # Row 11 : Grid Toggle
@@ -1276,7 +1439,15 @@ class GridMaker(ctk.CTk):
         """Resets all configuration settings to their default values, excluding the folder path, and updates UI labels."""
 
         # Keys that are connected to sliders and need label update
-        slider_keys = ["h_padding", "v_padding", "zoom_factor", "grid_rows", "grid_cols"]
+        slider_keys = [
+            "h_padding",
+            "v_padding",
+            "zoom_factor",
+            "grid_rows",
+            "grid_cols",
+            "pixel_art_scale",
+            "grid_thickness",
+        ]
 
         for key, value in DEFAULT_CONFIG.items():
             # Only reset settings stored in self.settings (sliders, color, etc.)
@@ -1298,10 +1469,6 @@ class GridMaker(ctk.CTk):
         self.color_display.configure(fg_color=self.settings["grid_color"].get())
         self.num_text_color_display.configure(fg_color=self.settings["grid_number_text_color"].get())
         self.num_bg_color_display.configure(fg_color=self.settings["grid_number_bg_color"].get())
-
-        # Reset grid thickness slider
-        self.grid_thickness_slider.set(self.settings["grid_thickness"].get())
-        self.grid_thickness_label.configure(text=self.settings["grid_thickness"].get())
 
         # Reset grid highlight every
         self.settings["grid_highlight_every"].set(DEFAULT_CONFIG["grid_highlight_every"])
