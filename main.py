@@ -713,38 +713,67 @@ class GridMaker(ctk.CTk):
         self._restyle_checker()
 
     def _apply_pixel_art(self, img):
-
-        scale = self.settings["pixel_art_scale"].get()
-        palette = self.settings["pixel_art_palette"].get().lower()
-        dith = self.settings["pixel_art_dithering"].get().lower()
-        sharpen = self.settings["pixel_art_sharpen"].get()
+        scale = max(1, int(self.settings["pixel_art_scale"].get()))
+        palette = str(self.settings["pixel_art_palette"].get()).lower()
+        dith = str(self.settings["pixel_art_dithering"].get()).lower()
+        sharpen = bool(self.settings["pixel_art_sharpen"].get())
 
         width, height = img.size
         small_w = max(1, width // scale)
         small_h = max(1, height // scale)
 
-        # Downscale
-        small = img.resize((small_w, small_h), Image.NEAREST)
+        small = img.convert("RGB").resize((small_w, small_h), Image.NEAREST)
 
-        # Palette reduction
+        target_colors = 256
         if palette != "none":
             if palette == "game boy":
-                small = small.quantize(colors=4, method=2, dither=1)
+                target_colors = 4
             else:
-                small = small.quantize(colors=int(palette), method=2, dither=1)
+                try:
+                    target_colors = int(palette)
+                except Exception:
+                    target_colors = 16
 
-        # Dithering modes
-        if dith == "none":
-            pass
+        # Step 1: Generate the Palette Image (Base)
+        if palette != "none":
+            base_palette_img = small.quantize(
+                colors=target_colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE
+            )
+        else:
+            base_palette_img = None
+
+        # Step 2: Apply Dithering based on mode
+        if dith == "ordered":
+            # Create the pattern using Web Palette
+            temp_ordered = small.convert("P", dither=Image.ORDERED)
+
+            if base_palette_img:
+                # FIX: Convert 'P' back to 'RGB' before re-quantizing to the custom palette
+                temp_rgb = temp_ordered.convert("RGB")
+                # Map the patterned pixels to the custom palette (dither=0 to preserve the pattern)
+                small_p = temp_rgb.quantize(palette=base_palette_img, dither=Image.Dither.NONE)
+            else:
+                small_p = temp_ordered
+
         elif dith == "floyd":
-            small = small.convert("RGB").convert("P", dither=Image.FLOYDSTEINBERG)
-        elif dith == "ordered":
-            small = small.convert("RGB").convert("P", dither=Image.ORDERED)
+            if base_palette_img:
+                small_p = small.quantize(palette=base_palette_img, dither=Image.Dither.FLOYDSTEINBERG)
+            else:
+                small_p = small.convert("P", dither=Image.Dither.FLOYDSTEINBERG, palette=Image.Palette.ADAPTIVE)
 
-        # Upscale
-        result = small.resize((width, height), Image.NEAREST)
+        else:
+            # No Dithering
+            if base_palette_img:
+                small_p = base_palette_img
+            else:
+                small_p = small
 
-        # Optional sharpen
+        # ---------- Upscale ----------
+        result = small_p.resize((width, height), Image.NEAREST)
+
+        if result.mode != "RGB":
+            result = result.convert("RGB")
+
         if sharpen:
             result = result.filter(ImageFilter.SHARPEN)
 
