@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.0.2"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -1492,6 +1492,10 @@ class GridMaker(ctk.CTk):
     def _reset_settings(self):
         """Resets all configuration settings to their default values, excluding the folder path, and updates UI labels."""
 
+        self.attributes("-disabled", True)
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_window.attributes("-disabled", True)
+
         # Keys that are connected to sliders and need label update
         slider_keys = [
             "h_padding",
@@ -1544,6 +1548,9 @@ class GridMaker(ctk.CTk):
         messagebox.showinfo(
             "Settings Reset", "All settings (except the folder path) have been reset to default values."
         )
+
+        self.attributes("-disabled", False)
+        self._enable_preview_after_success()
 
     def toggle_process(self):
         """
