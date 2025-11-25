@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "1.14.2"
+APP_VERSION = "2.0.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -655,11 +655,19 @@ class GridMaker(ctk.CTk):
     def _on_pixler_toggle(self):
         """Disables/enables all pixel-related UI when toggle is switched."""
         enabled = self.settings["pixel_art_enabled"].get()
-
         state = "normal" if enabled else "disabled"
 
-        # Slider
+        # Pixel Size Slider
         self.pixel_scale_slider.configure(state=state)
+
+        # Palette OptionMenu
+        self.pixel_palette_option.configure(state=state)
+
+        # Dithering OptionMenu
+        self.pixel_dither_option.configure(state=state)
+
+        # Sharpen Toggle
+        self.pixel_sharpen_toggle.configure(state=state)
 
         # Restyle preview
         self._restyle_checker()
@@ -848,7 +856,7 @@ class GridMaker(ctk.CTk):
 
         # Enable Pixel Art
         pixel_toggle_frame = ctk.CTkFrame(row8_frame, fg_color="transparent")
-        pixel_toggle_frame.grid(row=0, column=1, padx=(180, 0))
+        pixel_toggle_frame.grid(row=0, column=1, padx=(179, 0))
 
         ctk.CTkLabel(pixel_toggle_frame, text="Enable Pixel Art", font=ctk.CTkFont(weight="bold")).grid(
             row=0, column=0, padx=(0, 10)
@@ -901,29 +909,34 @@ class GridMaker(ctk.CTk):
         row10_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         row10_frame.grid(row=10, column=0, columnspan=2, sticky="ew", padx=20, pady=(10, 10))
 
+        # Configure columns: 0=Palette, 1=Dithering, 2=spacer, 3=Sharpen
+        row10_frame.grid_columnconfigure(0, weight=1)
+        row10_frame.grid_columnconfigure(1, weight=1)
+        row10_frame.grid_columnconfigure(2, weight=1)
+
         # Palette
-        ctk.CTkLabel(row10_frame, text="Palette:").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ctk.CTkLabel(row10_frame, text="Palette:").grid(row=0, column=0, sticky="w", padx=(0, 5))
         self.pixel_palette_option = ctk.CTkOptionMenu(
             row10_frame,
             variable=self.settings["pixel_art_palette"],
             values=["none", "16", "32", "64", "gameboy"],
             command=lambda v: self._restyle_checker(),
         )
-        self.pixel_palette_option.grid(row=0, column=1, sticky="w", padx=(0, 40))
+        self.pixel_palette_option.grid(row=0, column=0, sticky="e", padx=(50, 15))  # Adjust spacing as needed
 
         # Dithering
-        ctk.CTkLabel(row10_frame, text="Dithering:").grid(row=0, column=2, sticky="w", padx=(0, 10))
+        ctk.CTkLabel(row10_frame, text="Dithering:").grid(row=0, column=1, sticky="w", padx=(0, 10))
         self.pixel_dither_option = ctk.CTkOptionMenu(
             row10_frame,
             variable=self.settings["pixel_art_dithering"],
             values=["none", "floyd", "ordered"],
             command=lambda v: self._restyle_checker(),
         )
-        self.pixel_dither_option.grid(row=0, column=3, sticky="w", padx=(0, 40))
+        self.pixel_dither_option.grid(row=0, column=1, sticky="e", padx=(60, 10))  # Adjust spacing
 
-        # Sharpen Toggle
+        # Sharpen Toggle (always right)
         sharpen_frame = ctk.CTkFrame(row10_frame, fg_color="transparent")
-        sharpen_frame.grid(row=0, column=2, padx=(0, 0))
+        sharpen_frame.grid(row=0, column=2, sticky="e", padx=(10, 8))
 
         ctk.CTkLabel(sharpen_frame, text="Sharpen", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=(0, 10))
 
@@ -1833,6 +1846,10 @@ class GridMaker(ctk.CTk):
         grid_color = settings["grid_color"]
         rows = settings["grid_rows"]
         cols = rows  # enforce square grid
+
+        # Apply Pixel Art
+        if self.settings["pixel_art_enabled"].get():
+            img = self._apply_pixel_art(img)
 
         # --- Skip if grid disabled ---
         if not self.settings.get("grid_disabled").get() and rows > 0:
