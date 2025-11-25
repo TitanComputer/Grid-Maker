@@ -652,6 +652,18 @@ class GridMaker(ctk.CTk):
         if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
             self._preview_restyle()
 
+    def _on_pixler_toggle(self):
+        """Disables/enables all pixel-related UI when toggle is switched."""
+        enabled = self.settings["pixel_art_enabled"].get()
+
+        state = "normal" if enabled else "disabled"
+
+        # Slider
+        self.pixel_scale_slider.configure(state=state)
+
+        # Restyle preview
+        self._restyle_checker()
+
     def _on_grid_toggle(self):
         """Disables/enables all grid-related UI when toggle is switched."""
         disabled = self.settings["grid_disabled"].get()
@@ -848,7 +860,7 @@ class GridMaker(ctk.CTk):
             variable=self.settings["pixel_art_enabled"],
             onvalue=True,
             offvalue=False,
-            command=self._restyle_checker,
+            command=self._on_pixler_toggle,
         )
         self.pixel_art_toggle.grid(row=0, column=1)
 
