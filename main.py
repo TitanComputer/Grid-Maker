@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.0.1"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -1929,9 +1929,12 @@ class GridMaker(ctk.CTk):
         top.title("Donate ❤")
         top.resizable(False, False)
         self.attributes("-disabled", True)
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_window.attributes("-disabled", True)
 
         def top_on_close():
             self.attributes("-disabled", False)
+            self._enable_preview_after_success()
             top.destroy()
             self.lift()
             self.focus()
