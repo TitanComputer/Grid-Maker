@@ -34,8 +34,8 @@ DEFAULT_CONFIG = {
     "grid_highlight_every": 0,
     "pixel_art_enabled": True,
     "pixel_art_scale": 8,
-    "pixel_art_palette": "none",
-    "pixel_art_dithering": "none",
+    "pixel_art_palette": "None",
+    "pixel_art_dithering": "None",
     "pixel_art_sharpen": False,
 }
 
@@ -715,8 +715,8 @@ class GridMaker(ctk.CTk):
     def _apply_pixel_art(self, img):
 
         scale = self.settings["pixel_art_scale"].get()
-        palette = self.settings["pixel_art_palette"].get()
-        dith = self.settings["pixel_art_dithering"].get()
+        palette = self.settings["pixel_art_palette"].get().lower()
+        dith = self.settings["pixel_art_dithering"].get().lower()
         sharpen = self.settings["pixel_art_sharpen"].get()
 
         width, height = img.size
@@ -728,7 +728,7 @@ class GridMaker(ctk.CTk):
 
         # Palette reduction
         if palette != "none":
-            if palette == "gameboy":
+            if palette == "game boy":
                 small = small.quantize(colors=4, method=2, dither=1)
             else:
                 small = small.quantize(colors=int(palette), method=2, dither=1)
@@ -919,7 +919,7 @@ class GridMaker(ctk.CTk):
         self.pixel_palette_option = ctk.CTkOptionMenu(
             row10_frame,
             variable=self.settings["pixel_art_palette"],
-            values=["none", "16", "32", "64", "gameboy"],
+            values=["None", "16", "32", "64", "Game Boy"],
             command=lambda v: self._restyle_checker(),
         )
         self.pixel_palette_option.grid(row=0, column=0, sticky="e", padx=(50, 15))  # Adjust spacing as needed
@@ -929,7 +929,7 @@ class GridMaker(ctk.CTk):
         self.pixel_dither_option = ctk.CTkOptionMenu(
             row10_frame,
             variable=self.settings["pixel_art_dithering"],
-            values=["none", "floyd", "ordered"],
+            values=["None", "Floyd", "Ordered"],
             command=lambda v: self._restyle_checker(),
         )
         self.pixel_dither_option.grid(row=0, column=1, sticky="e", padx=(60, 10))  # Adjust spacing
