@@ -29,7 +29,7 @@ DEFAULT_CONFIG = {
     "show_grid_numbers": True,
     "grid_number_text_color": "#000000",
     "grid_number_bg_color": "#FFFFFF",
-    "grid_disabled": False,
+    "grid_enabled": True,
     "grid_thickness": 1,
     "grid_highlight_every": 0,
     "pixel_art_enabled": True,
@@ -139,7 +139,7 @@ class GridMaker(ctk.CTk):
             "show_grid_numbers": ctk.BooleanVar(value=DEFAULT_CONFIG["show_grid_numbers"]),
             "grid_number_text_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_text_color"]),
             "grid_number_bg_color": ctk.StringVar(value=DEFAULT_CONFIG["grid_number_bg_color"]),
-            "grid_disabled": ctk.BooleanVar(value=DEFAULT_CONFIG["grid_disabled"]),
+            "grid_enabled": ctk.BooleanVar(value=DEFAULT_CONFIG["grid_enabled"]),
             "grid_thickness": ctk.IntVar(value=DEFAULT_CONFIG["grid_thickness"]),
             "grid_highlight_every": ctk.IntVar(value=DEFAULT_CONFIG["grid_highlight_every"]),
             "pixel_art_enabled": ctk.BooleanVar(value=DEFAULT_CONFIG["pixel_art_enabled"]),
@@ -258,7 +258,7 @@ class GridMaker(ctk.CTk):
             "show_grid_numbers": self.settings["show_grid_numbers"].get(),
             "grid_number_text_color": self.settings["grid_number_text_color"].get(),
             "grid_number_bg_color": self.settings["grid_number_bg_color"].get(),
-            "grid_disabled": self.settings["grid_disabled"].get(),
+            "grid_enabled": self.settings["grid_enabled"].get(),
             "grid_thickness": self.settings["grid_thickness"].get(),
             "grid_highlight_every": self.settings["grid_highlight_every"].get(),
             "pixel_art_enabled": self.settings["pixel_art_enabled"].get(),
@@ -368,7 +368,7 @@ class GridMaker(ctk.CTk):
             img = self._apply_pixel_art(img)
 
         # --- Skip if grid disabled ---
-        if not self.settings.get("grid_disabled").get() and rows > 0:
+        if self.settings.get("grid_enabled").get() and rows > 0:
             # Draw grid
             img = self._draw_grid(img, rows, cols, grid_color)
             # --- Apply grid numbers if enabled
@@ -674,25 +674,25 @@ class GridMaker(ctk.CTk):
 
     def _on_grid_toggle(self):
         """Disables/enables all grid-related UI when toggle is switched."""
-        disabled = self.settings["grid_disabled"].get()
+        enabled = self.settings["grid_enabled"].get()
 
-        state = "disabled" if disabled else "normal"
+        state = "normal" if enabled else "disabled"
 
         # Buttons
         self.color_button.configure(state=state)
         # self.color_display is a CTkFrame, can't set state
         # We can optionally gray it out
-        self.color_display.configure(fg_color="#d3d3d3" if disabled else self.settings["grid_color"].get())
+        self.color_display.configure(fg_color=self.settings["grid_color"].get() if enabled else "#d3d3d3")
 
         # Grid number options
         self.grid_number_toggle.configure(state=state)
         self.num_text_color_button.configure(state=state)
         self.num_text_color_display.configure(
-            fg_color="#d3d3d3" if disabled else self.settings["grid_number_text_color"].get()
+            fg_color=self.settings["grid_number_text_color"].get() if enabled else "#d3d3d3"
         )
         self.num_bg_color_button.configure(state=state)
         self.num_bg_color_display.configure(
-            fg_color="#d3d3d3" if disabled else self.settings["grid_number_bg_color"].get()
+            fg_color=self.settings["grid_number_bg_color"].get() if enabled else "#d3d3d3"
         )
 
         # Grid rows slider
@@ -988,15 +988,15 @@ class GridMaker(ctk.CTk):
 
         # Toggle frame on the right side of the label
         grid_toggle_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        grid_toggle_frame.grid(row=11, column=0, columnspan=2, padx=(337, 0), pady=(10, 5))
+        grid_toggle_frame.grid(row=11, column=0, columnspan=2, padx=(340, 0), pady=(10, 5))
 
-        disable_toggle_label = ctk.CTkLabel(grid_toggle_frame, text="Disable Grid", font=ctk.CTkFont(weight="bold"))
+        disable_toggle_label = ctk.CTkLabel(grid_toggle_frame, text="Enable Grid", font=ctk.CTkFont(weight="bold"))
         disable_toggle_label.grid(row=0, column=0, padx=(0, 10), sticky="e")
 
         self.grid_disable_toggle = ctk.CTkSwitch(
             grid_toggle_frame,
             text="",
-            variable=self.settings["grid_disabled"],
+            variable=self.settings["grid_enabled"],
             onvalue=True,
             offvalue=False,
             command=self._on_grid_toggle,
@@ -1528,8 +1528,11 @@ class GridMaker(ctk.CTk):
         self.settings["grid_highlight_every"].set(DEFAULT_CONFIG["grid_highlight_every"])
 
         # Reset grid toggle
-        self.grid_disable_toggle.configure(state="normal" if not self.settings["grid_disabled"].get() else "disabled")
+        self.grid_disable_toggle.configure(state="normal" if self.settings["grid_enabled"].get() else "disabled")
         self._on_grid_toggle()  # ensure UI is consistent
+
+        # Reset pixel toggle
+        self._on_pixler_toggle()  # ensure UI is consistent
 
         # Reset Progress Bar and Label
         self.progress_bar.set(0)
@@ -1881,7 +1884,7 @@ class GridMaker(ctk.CTk):
             img = self._apply_pixel_art(img)
 
         # --- Skip if grid disabled ---
-        if not self.settings.get("grid_disabled").get() and rows > 0:
+        if self.settings.get("grid_enabled").get() and rows > 0:
             # 3. Draw grid
             img = self._draw_grid(img, rows, cols, grid_color)
             # --- Apply grid numbers if enabled
