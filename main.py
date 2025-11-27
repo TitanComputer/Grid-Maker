@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.0.2"
+APP_VERSION = "2.1.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -394,15 +394,22 @@ class GridMaker(ctk.CTk):
         self.preview_image_label.configure(image=ctk_img)
         self.preview_image_label.image = ctk_img  # prevent garbage collection
 
+    def _reset_scrollbar(self):
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_canvas.yview_moveto(0)
+            self.preview_canvas.xview_moveto(0)
+
     def _preview_next(self):
         if self.preview_index < len(self.preview_files) - 1:
             self.preview_index += 1
+            self._reset_scrollbar()
             self._render_preview_image()
             self._update_preview_nav_buttons()
 
     def _preview_prev(self):
         if self.preview_index > 0:
             self.preview_index -= 1
+            self._reset_scrollbar()
             self._render_preview_image()
             self._update_preview_nav_buttons()
 
@@ -1581,7 +1588,7 @@ class GridMaker(ctk.CTk):
         self.progress_bar.set(0)
         self.progress_text_var.set("0%")
         self.save_config()
-
+        self._reset_scrollbar()
         self._restyle_checker()
 
         messagebox.showinfo(
