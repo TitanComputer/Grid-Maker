@@ -652,6 +652,26 @@ class GridMaker(ctk.CTk):
         if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
             self._preview_restyle()
 
+        try:
+            pw = self.preview_window
+
+            # if minimized → restore
+            if pw.state() == "iconic":
+                pw.state("normal")
+
+            self.after(
+                0,
+                lambda: [
+                    # bring to front
+                    pw.lift(),
+                    pw.focus_force(),
+                    self.focus(),
+                ],
+            )
+
+        except:
+            pass
+
     def _on_pixler_toggle(self):
         """Disables/enables all pixel-related UI when toggle is switched."""
         enabled = self.settings["pixel_art_enabled"].get()
@@ -737,6 +757,8 @@ class GridMaker(ctk.CTk):
             img = img.crop((left, top, right, bottom))
 
         width, height = img.size  # now width==target_w, height==target_h
+
+        print(width // scale, height // scale)
 
         # create small (downscaled) image in RGB for predictable behavior
         small = img.convert("RGB").resize((small_w, small_h), Image.NEAREST)
