@@ -718,10 +718,27 @@ class GridMaker(ctk.CTk):
         dith = str(self.settings["pixel_art_dithering"].get()).lower()
         sharpen = bool(self.settings["pixel_art_sharpen"].get())
 
-        width, height = img.size
-        small_w = max(1, width // scale)
-        small_h = max(1, height // scale)
+        orig_width, orig_height = img.size
 
+        # compute target small dimensions
+        small_w = max(1, orig_width // scale)
+        small_h = max(1, orig_height // scale)
+
+        # compute target (cropped) full-size dimensions that are exact multiples of scale
+        target_w = small_w * scale
+        target_h = small_h * scale
+
+        # if original isn't divisible by scale, crop centered to make it divisible
+        if target_w != orig_width or target_h != orig_height:
+            left = (orig_width - target_w) // 2
+            top = (orig_height - target_h) // 2
+            right = left + target_w
+            bottom = top + target_h
+            img = img.crop((left, top, right, bottom))
+
+        width, height = img.size  # now width==target_w, height==target_h
+
+        # create small (downscaled) image in RGB for predictable behavior
         small = img.convert("RGB").resize((small_w, small_h), Image.NEAREST)
 
         target_colors = 256
