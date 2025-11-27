@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.1.1"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -1132,7 +1132,7 @@ class GridMaker(ctk.CTk):
             text="Grid Line Color",
             width=110,
             font=ctk.CTkFont(weight="bold"),
-            command=self._pick_color,
+            command=lambda: self._pick_color("line"),
         )
         self.color_button.grid(row=0, column=0, sticky="w")
 
@@ -1190,7 +1190,7 @@ class GridMaker(ctk.CTk):
             gridnum_color_frame,
             text="Numbers Text Color",
             width=140,
-            command=lambda: self._pick_number_color("text"),
+            command=lambda: self._pick_color("text"),
             font=ctk.CTkFont(weight="bold"),
         )
         self.num_text_color_button.grid(row=0, column=0, sticky="w")
@@ -1211,7 +1211,7 @@ class GridMaker(ctk.CTk):
             gridnum_color_frame,
             text="Numbers Background Color",
             width=140,
-            command=lambda: self._pick_number_color("bg"),
+            command=lambda: self._pick_color("bg"),
             font=ctk.CTkFont(weight="bold"),
         )
         self.num_bg_color_button.grid(row=0, column=2, sticky="w")
@@ -1461,7 +1461,12 @@ class GridMaker(ctk.CTk):
             else os.path.expanduser("~/Documents")
         )
 
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_window.attributes("-disabled", True)
+
         folder_selected = filedialog.askdirectory(initialdir=initial_dir, title="Select Folder Containing Images")
+        self._enable_preview_window()
+
         if folder_selected:
             # update the variable used elsewhere in code
             self.folder_path_var.set(folder_selected)
@@ -1501,7 +1506,12 @@ class GridMaker(ctk.CTk):
 
         self._update_preview_button_state()
 
-    def _pick_number_color(self, mode):
+    def _pick_color(self, mode):
+        """Opens a color chooser dialog and updates the grid color variable and display."""
+
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_window.attributes("-disabled", True)
+
         if mode == "text":
             initial = self.settings["grid_number_text_color"].get()
             color_code = colorchooser.askcolor(title="Choose Numbers Text Color", initialcolor=initial)
@@ -1520,19 +1530,16 @@ class GridMaker(ctk.CTk):
                 self.settings["grid_number_bg_color"].set(new_color)
                 self.num_bg_color_display.configure(fg_color=new_color)
 
-        self._restyle_checker()
+        elif mode == "line":
+            initial = self.settings["grid_color"].get()
+            color_code = colorchooser.askcolor(title="Choose Grid Color", initialcolor=initial)
 
-    def _pick_color(self):
-        """Opens a color chooser dialog and updates the grid color variable and display."""
-        color_code = colorchooser.askcolor(title="Choose Grid Color", initialcolor=self.settings["grid_color"].get())
+            if color_code and color_code[1] is not None:
+                new_color = color_code[1]
+                self.settings["grid_color"].set(new_color)
+                self.color_display.configure(fg_color=new_color)
 
-        if color_code and color_code[1] is not None:
-            new_color = color_code[1]
-            self.settings["grid_color"].set(new_color)
-
-            # Update the display frame color
-            self.color_display.configure(fg_color=new_color)
-
+        self._enable_preview_window()
         self._restyle_checker()
 
     def _reset_settings(self):
@@ -1596,7 +1603,7 @@ class GridMaker(ctk.CTk):
         )
 
         self.attributes("-disabled", False)
-        self._enable_preview_after_success()
+        self._enable_preview_window()
 
     def toggle_process(self):
         """
@@ -1689,7 +1696,7 @@ class GridMaker(ctk.CTk):
                 0,
                 lambda: [
                     messagebox.showinfo("Info", "No supported images found in the selected folder."),
-                    self._enable_preview_after_success(),
+                    self._enable_preview_window(),
                 ],
             )
             self._cleanup_process(success=False)
@@ -1712,7 +1719,7 @@ class GridMaker(ctk.CTk):
                     0,
                     lambda: [
                         messagebox.showinfo("Stopped", "Process manually stopped by user."),
-                        self._enable_preview_after_success(),
+                        self._enable_preview_window(),
                     ],
                 )
                 self._cleanup_process(success=False)
@@ -1749,7 +1756,7 @@ class GridMaker(ctk.CTk):
                             "Processing Error",
                             f"Error processing {filename}: {e}\n\nThis may be caused by special characters in the filename. Try renaming the file.",
                         ),
-                        self._enable_preview_after_success(),
+                        self._enable_preview_window(),
                     ],
                 )
                 self._cleanup_process(success=False)
@@ -1757,7 +1764,7 @@ class GridMaker(ctk.CTk):
 
         self._cleanup_process(success=True)
 
-    def _enable_preview_after_success(self):
+    def _enable_preview_window(self):
         if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
             self.preview_window.attributes("-disabled", False)
 
@@ -1792,7 +1799,7 @@ class GridMaker(ctk.CTk):
                         "Success",
                         f"All images processed successfully!\n\n{self.total_files} files were saved to:\n{os.path.normpath(os.path.join(self.folder_path_var.get(), 'output'))}",
                     ),
-                    self._enable_preview_after_success(),
+                    self._enable_preview_window(),
                 ),
             )
         else:
@@ -1990,7 +1997,7 @@ class GridMaker(ctk.CTk):
 
         def top_on_close():
             self.attributes("-disabled", False)
-            self._enable_preview_after_success()
+            self._enable_preview_window()
             top.destroy()
             self.lift()
             self.focus()
