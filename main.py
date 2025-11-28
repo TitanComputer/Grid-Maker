@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.1.1"
+APP_VERSION = "2.2.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -558,6 +558,8 @@ class GridMaker(ctk.CTk):
             self._update_preview_nav_buttons()
 
     def _preview_restyle(self):
+        self._preview_scale = 1.0
+        self._reset_scrollbar()
         self._render_preview_image()
 
     def _preview_zoom_in(self, target="center", event=None):
@@ -716,7 +718,7 @@ class GridMaker(ctk.CTk):
         """Save the currently previewed image with grid applied."""
         try:
             self.attributes("-disabled", True)
-            self._preview_restyle()
+            self._render_preview_image()
             current_file = self.preview_files[self.preview_index]
 
             # ensure output folder
@@ -954,9 +956,9 @@ class GridMaker(ctk.CTk):
         top.after(200, top.deiconify)
 
     def _restyle_checker(self):
-        # --- Call _preview_restyle if preview window is open ---
+        # --- Call _render_preview_image if preview window is open ---
         if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
-            self._preview_restyle()
+            self._render_preview_image()
 
         try:
             pw = self.preview_window
@@ -1692,7 +1694,7 @@ class GridMaker(ctk.CTk):
         )
         self.reset_button.grid(row=0, column=2, sticky="ew", padx=(10, 0))
 
-    # --- Bind mouse release to call _preview_restyle ---
+    # --- Bind mouse release to call _restyle_checker ---
     def on_release(self, event):
         self._restyle_checker()
 
