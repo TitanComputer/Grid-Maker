@@ -155,6 +155,14 @@ class GridMaker(ctk.CTk):
         self.total_files = 0
         self.processing_thread = None
 
+        # preview-only state
+        self._preview_scale = 1.0
+        self._preview_zoom_target = None  # "center" or "mouse" or None
+        self._preview_before_abs = None  # (abs_x_before, abs_y_before)
+        self._preview_before_bbox = None  # bbox before zoom
+        self._preview_mouse_x = None  # last mouse pos on canvas (pixels)
+        self._preview_mouse_y = None
+
         # Load config to overwrite default variable values
         self.load_config()
 
@@ -335,6 +343,9 @@ class GridMaker(ctk.CTk):
         if not (hasattr(self, "preview_files") and self.preview_files):
             return
 
+        # ensure preview-only scale exists
+        self._preview_scale = getattr(self, "_preview_scale", 1.0)
+
         img_path = self.preview_files[self.preview_index]
 
         try:
@@ -375,7 +386,7 @@ class GridMaker(ctk.CTk):
             if self.settings["show_grid_numbers"].get():
                 img = self._apply_grid_numbers(img)
 
-        # Resize to fit preview window
+        # Resize to fit preview window (apply preview-only scale)
         try:
             preview_width = self.preview_window.winfo_width()
             if preview_width < 50:
@@ -383,16 +394,147 @@ class GridMaker(ctk.CTk):
         except:
             preview_width = 600
 
+        # base fit-to-window size
         aspect_ratio = img.height / img.width
-        final_height = int(preview_width * aspect_ratio)
-        final_img = img.resize((preview_width, final_height), Image.Resampling.LANCZOS)
+        base_width = preview_width
+        base_height = int(base_width * aspect_ratio)
+
+        # apply preview-only scale
+        scale = getattr(self, "_preview_scale", 1.0)
+
+        # clamp scale to reasonable bounds
+        MIN_SCALE = 0.05
+        MAX_SCALE = 4.0
+        if scale < MIN_SCALE:
+            scale = MIN_SCALE
+            self._preview_scale = scale
+        if scale > MAX_SCALE:
+            scale = MAX_SCALE
+            self._preview_scale = scale
+
+        # compute target display size
+        target_width = max(1, int(base_width * scale))
+        target_height = max(1, int(base_height * scale))
+
+        # optional: prevent zooming out smaller than fit-to-window (so image not tiny)
+        if target_width < base_width or target_height < base_height:
+            target_width = base_width
+            target_height = base_height
+            self._preview_scale = 1.0
+            scale = 1.0
+
+        final_img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
         # Convert to CTkImage (fix HighDPI warning)
-        ctk_img = CTkImage(light_image=final_img, dark_image=final_img, size=(preview_width, final_height))
+        ctk_img = CTkImage(light_image=final_img, dark_image=final_img, size=(target_width, target_height))
 
         self.last_render = img
         self.preview_image_label.configure(image=ctk_img)
         self.preview_image_label.image = ctk_img  # prevent garbage collection
+
+        # update canvas scrollregion
+        try:
+            # run idle tasks to ensure widget sizes updated
+            self.preview_frame.update_idletasks()
+            # old bbox MAY be stored in self._preview_before_bbox (set before zoom)
+            self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all"))
+            # if a zoom action occurred, recenter accordingly
+            if getattr(self, "_preview_zoom_target", None) is not None:
+                before_bbox = getattr(self, "_preview_before_bbox", None)
+                before_abs = getattr(self, "_preview_before_abs", None)
+                # bbox after
+                after_bbox = self.preview_canvas.bbox("all") or (0, 0, 1, 1)
+
+                if before_bbox and before_abs:
+                    bx1, by1, bx2, by2 = before_bbox
+                    ax1, ay1, ax2, ay2 = after_bbox
+                    old_w = max(1, bx2 - bx1)
+                    old_h = max(1, by2 - by1)
+                    new_w = max(1, ax2 - ax1)
+                    new_h = max(1, ay2 - ay1)
+
+                    abs_x_before, abs_y_before = before_abs
+
+                    # compute relative fraction inside old content
+                    rel_x = (abs_x_before - bx1) / old_w
+                    rel_y = (abs_y_before - by1) / old_h
+                    rel_x = min(max(rel_x, 0.0), 1.0)
+                    rel_y = min(max(rel_y, 0.0), 1.0)
+
+                    # compute new absolute coordinate in AFTER bbox corresponding to same relative point
+                    abs_x_after = ax1 + rel_x * new_w
+                    abs_y_after = ay1 + rel_y * new_h
+
+                    # now compute target top-left so that that absolute point appears at the same canvas pixel
+                    # get focal canvas pixel: if target was mouse, use stored mouse coords; else center
+                    if (
+                        self._preview_zoom_target == "mouse"
+                        and self._preview_mouse_x is not None
+                        and self._preview_mouse_y is not None
+                    ):
+                        focal_x = self._preview_mouse_x
+                        focal_y = self._preview_mouse_y
+                    else:
+                        focal_x = self.preview_canvas.winfo_width() // 2
+                        focal_y = self.preview_canvas.winfo_height() // 2
+
+                    # desired top-left absolute after so that abs_x_after maps to focal_x:
+                    desired_left = abs_x_after - focal_x
+                    desired_top = abs_y_after - focal_y
+
+                    # convert to fraction for xview_moveto/yview_moveto (0..1)
+                    frac_x = desired_left / new_w
+                    frac_y = desired_top / new_h
+                    frac_x = min(max(frac_x, 0.0), 1.0)
+                    frac_y = min(max(frac_y, 0.0), 1.0)
+
+                    try:
+                        self.preview_canvas.xview_moveto(frac_x)
+                        self.preview_canvas.yview_moveto(frac_y)
+                    except:
+                        pass
+
+                else:
+                    # fallback: center
+                    self._center_preview_on_canvas()
+
+                # reset zoom-target state so normal renders won't recenter
+                self._preview_zoom_target = None
+                self._preview_before_bbox = None
+                self._preview_before_abs = None
+            else:
+                # no zoom action — do nothing (keep current scroll as-is)
+                pass
+
+        except Exception:
+            pass
+
+    def _center_preview_on_canvas(self):
+        try:
+            self.preview_canvas.update_idletasks()
+
+            x1, y1, x2, y2 = self.preview_canvas.bbox("all")
+            content_w = x2 - x1
+            content_h = y2 - y1
+
+            canvas_w = self.preview_canvas.winfo_width()
+            canvas_h = self.preview_canvas.winfo_height()
+
+            # compute target scroll offsets
+            if content_w > canvas_w:
+                x_offset = (content_w - canvas_w) / 2
+                self.preview_canvas.xview_moveto(x_offset / content_w)
+            else:
+                self.preview_canvas.xview_moveto(0)
+
+            if content_h > canvas_h:
+                y_offset = (content_h - canvas_h) / 2
+                self.preview_canvas.yview_moveto(y_offset / content_h)
+            else:
+                self.preview_canvas.yview_moveto(0)
+
+        except:
+            pass
 
     def _reset_scrollbar(self):
         if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
@@ -402,6 +544,7 @@ class GridMaker(ctk.CTk):
     def _preview_next(self):
         if self.preview_index < len(self.preview_files) - 1:
             self.preview_index += 1
+            self._preview_scale = 1.0
             self._reset_scrollbar()
             self._render_preview_image()
             self._update_preview_nav_buttons()
@@ -409,12 +552,125 @@ class GridMaker(ctk.CTk):
     def _preview_prev(self):
         if self.preview_index > 0:
             self.preview_index -= 1
+            self._preview_scale = 1.0
             self._reset_scrollbar()
             self._render_preview_image()
             self._update_preview_nav_buttons()
 
     def _preview_restyle(self):
         self._render_preview_image()
+
+    def _preview_zoom_in(self, target="center", event=None):
+        self._prev_preview_scale = self._preview_scale
+        # capture before-state for later re-centering
+        try:
+            bbox = self.preview_canvas.bbox("all") or (0, 0, 1, 1)
+        except:
+            bbox = (0, 0, 1, 1)
+        self._preview_before_bbox = bbox
+
+        # determine mouse canvas absolute coords BEFORE zoom
+        if target == "mouse" and (
+            event is not None or (self._preview_mouse_x is not None and self._preview_mouse_y is not None)
+        ):
+            # prefer event coords if passed
+            if event is not None:
+                mx, my = event.x, event.y
+            else:
+                mx, my = self._preview_mouse_x, self._preview_mouse_y
+            # convert label-local mouse coords to canvas absolute coords
+            try:
+                abs_x = self.preview_canvas.canvasx(mx)
+                abs_y = self.preview_canvas.canvasy(my)
+            except:
+                abs_x = (bbox[0] + bbox[2]) / 2
+                abs_y = (bbox[1] + bbox[3]) / 2
+        else:
+            # center point
+            canvas_w = self.preview_canvas.winfo_width() or 1
+            canvas_h = self.preview_canvas.winfo_height() or 1
+            abs_x = self.preview_canvas.canvasx(canvas_w // 2)
+            abs_y = self.preview_canvas.canvasy(canvas_h // 2)
+
+        self._preview_before_abs = (abs_x, abs_y)
+        self._preview_zoom_target = target
+
+        # change scale
+        self._preview_scale = min(getattr(self, "_preview_scale", 1.0) * 1.25, 16.0)
+
+        # render (render will perform after-render recenter)
+        self._render_preview_image()
+
+    def _preview_zoom_out(self, target="center", event=None):
+        self._prev_preview_scale = self._preview_scale
+        try:
+            bbox = self.preview_canvas.bbox("all") or (0, 0, 1, 1)
+        except:
+            bbox = (0, 0, 1, 1)
+        self._preview_before_bbox = bbox
+
+        if target == "mouse" and (
+            event is not None or (self._preview_mouse_x is not None and self._preview_mouse_y is not None)
+        ):
+            if event is not None:
+                mx, my = event.x, event.y
+            else:
+                mx, my = self._preview_mouse_x, self._preview_mouse_y
+            try:
+                abs_x = self.preview_canvas.canvasx(mx)
+                abs_y = self.preview_canvas.canvasy(my)
+            except:
+                abs_x = (bbox[0] + bbox[2]) / 2
+                abs_y = (bbox[1] + bbox[3]) / 2
+        else:
+            canvas_w = self.preview_canvas.winfo_width() or 1
+            canvas_h = self.preview_canvas.winfo_height() or 1
+            abs_x = self.preview_canvas.canvasx(canvas_w // 2)
+            abs_y = self.preview_canvas.canvasy(canvas_h // 2)
+
+        self._preview_before_abs = (abs_x, abs_y)
+        self._preview_zoom_target = target
+
+        self._preview_scale = max(getattr(self, "_preview_scale", 1.0) / 1.25, 0.05)
+
+        self._render_preview_image()
+
+    def _zoom_at_point(self, x, y, new_scale):
+        canvas = self.preview_canvas
+
+        # current scroll region
+        x0, y0, x1, y1 = canvas.bbox("all")
+        old_w = x1 - x0
+        old_h = y1 - y0
+
+        # convert mouse coord into absolute image position
+        abs_x = canvas.canvasx(x)
+        abs_y = canvas.canvasy(y)
+
+        # convert absolute to relative (before zoom)
+        rel_x = (abs_x - x0) / old_w
+        rel_y = (abs_y - y0) / old_h
+
+        # update scale
+        self._preview_scale = new_scale
+        self._render_preview_image()
+
+        # after render, get new region
+        x0, y0, x1, y1 = canvas.bbox("all")
+        new_w = x1 - x0
+        new_h = y1 - y0
+
+        # move viewport so point stays under cursor
+        canvas.xview_moveto(rel_x - (x / new_w))
+        canvas.yview_moveto(rel_y - (y / new_h))
+
+    def _mousewheel_zoom(self, event):
+        if event.delta > 0:
+            new_scale = min(self._preview_scale * 1.25, 16.0)
+        else:
+            new_scale = max(self._preview_scale / 1.25, 0.05)
+
+        self._zoom_at_point(event.x, event.y, new_scale)
 
     def _update_preview_nav_buttons(self):
         total = len(self.preview_files)
@@ -494,6 +750,17 @@ class GridMaker(ctk.CTk):
             messagebox.showerror("Save Error", str(e), parent=self.preview_window)
         finally:
             self.attributes("-disabled", False)
+
+    def _on_preview_mouse_move(self, event):
+        try:
+            # event.x/event.y are coordinates *inside the label widget*
+            # convert to canvas coordinates by adding label widget's position on canvas
+            # we can use canvasx/canvasy from the preview_canvas if label is placed at (0,0) inside preview_frame
+            self._preview_mouse_x = event.x
+            self._preview_mouse_y = event.y
+        except:
+            self._preview_mouse_x = None
+            self._preview_mouse_y = None
 
     def _open_preview_window(self):
         """Opens a non-modal preview window positioned next to the main window."""
@@ -612,6 +879,14 @@ class GridMaker(ctk.CTk):
         self.preview_image_label = ctk.CTkLabel(self.preview_frame, text="")
         self.preview_image_label.grid(row=0, column=0, pady=5)
 
+        # Mouse wheel zoom
+        # store mouse pos relative to the *canvas* (not label) so we can compute canvasx/canvasy
+        self.preview_canvas.bind("<Motion>", lambda e: self._on_preview_mouse_move(e))
+        # mouse wheel bindings (windows/mac/linux)
+        self.preview_image_label.bind("<MouseWheel>", self._mousewheel_zoom)
+        self.preview_image_label.bind("<Button-4>", lambda e: self._mousewheel_zoom(e))  # linux up
+        self.preview_image_label.bind("<Button-5>", lambda e: self._mousewheel_zoom(e))  # linux down
+
         # =============================================================
         #   BUTTON ROW (GRID, BIG FONT, BOLD)
         # =============================================================
@@ -621,6 +896,8 @@ class GridMaker(ctk.CTk):
         buttons_frame.grid_columnconfigure(1, weight=1)
         buttons_frame.grid_columnconfigure(2, weight=1)
         buttons_frame.grid_columnconfigure(3, weight=1)
+        buttons_frame.grid_columnconfigure(4, weight=1)
+        buttons_frame.grid_columnconfigure(5, weight=1)
 
         btn_font = ctk.CTkFont(size=16, weight="bold")
 
@@ -636,17 +913,39 @@ class GridMaker(ctk.CTk):
         )
         self.restyle_btn.grid(row=0, column=1, padx=10, pady=10)
 
+        # Zoom Out button
+        self.zoom_out_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Zoom -",
+            width=120,
+            height=40,
+            font=btn_font,
+            command=lambda: self._preview_zoom_out(target="center"),
+        )
+        self.zoom_out_btn.grid(row=0, column=2, padx=10, pady=10)
+
         # Save button
         self.save_btn = ctk.CTkButton(
             buttons_frame, text="Save", width=120, height=40, font=btn_font, command=self._preview_save
         )
-        self.save_btn.grid(row=0, column=2, padx=10, pady=10)
+        self.save_btn.grid(row=0, column=3, padx=10, pady=10)
+
+        # Zoom In button
+        self.zoom_in_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Zoom +",
+            width=120,
+            height=40,
+            font=btn_font,
+            command=lambda: self._preview_zoom_in(target="center"),
+        )
+        self.zoom_in_btn.grid(row=0, column=4, padx=10, pady=10)
 
         # Next button
         self.next_btn = ctk.CTkButton(
             buttons_frame, text="Next", width=120, height=40, font=btn_font, command=self._preview_next
         )
-        self.next_btn.grid(row=0, column=3, padx=10, pady=10)
+        self.next_btn.grid(row=0, column=5, padx=10, pady=10)
 
         # --- First render ---
         top.after(250, self._render_preview_image)
@@ -1590,6 +1889,9 @@ class GridMaker(ctk.CTk):
 
         # Reset pixel toggle
         self._on_pixler_toggle()  # ensure UI is consistent
+
+        # preview scale (display-only)
+        self._preview_scale = 1.0
 
         # Reset Progress Bar and Label
         self.progress_bar.set(0)
