@@ -637,42 +637,55 @@ class GridMaker(ctk.CTk):
 
         self._render_preview_image()
 
-    def _zoom_at_point(self, x, y, new_scale):
+    def _mousewheel_zoom(self, event):
+        """
+        Handle mouse-wheel zoom so the point under the cursor stays fixed.
+        Stores 'before' bbox and absolute coords, sets zoom target to "mouse",
+        updates preview scale and triggers a render (which will recenter).
+        """
         canvas = self.preview_canvas
 
-        # current scroll region
-        x0, y0, x1, y1 = canvas.bbox("all")
-        old_w = x1 - x0
-        old_h = y1 - y0
+        # compute mouse position relative to canvas (client coords)
+        try:
+            # best: use pointer position to handle focus/label vs canvas differences
+            cx = canvas.winfo_pointerx() - canvas.winfo_rootx()
+            cy = canvas.winfo_pointery() - canvas.winfo_rooty()
+        except Exception:
+            # fallback: use event coords (might be relative to widget that raised event)
+            cx = getattr(event, "x", 0)
+            cy = getattr(event, "y", 0)
 
-        # convert mouse coord into absolute image position
-        abs_x = canvas.canvasx(x)
-        abs_y = canvas.canvasy(y)
+        # store bbox and absolute canvas coordinate of that point BEFORE changing scale
+        try:
+            before_bbox = canvas.bbox("all")
+        except Exception:
+            before_bbox = None
 
-        # convert absolute to relative (before zoom)
-        rel_x = (abs_x - x0) / old_w
-        rel_y = (abs_y - y0) / old_h
+        # absolute coords in canvas space (works even when scrolled)
+        try:
+            abs_x_before = canvas.canvasx(cx)
+            abs_y_before = canvas.canvasy(cy)
+        except Exception:
+            abs_x_before = cx
+            abs_y_before = cy
 
-        # update scale
-        self._preview_scale = new_scale
-        self._render_preview_image()
+        self._preview_before_bbox = before_bbox
+        self._preview_before_abs = (abs_x_before, abs_y_before)
+        self._preview_mouse_x = int(cx)
+        self._preview_mouse_y = int(cy)
+        self._preview_zoom_target = "mouse"
 
-        # after render, get new region
-        x0, y0, x1, y1 = canvas.bbox("all")
-        new_w = x1 - x0
-        new_h = y1 - y0
-
-        # move viewport so point stays under cursor
-        canvas.xview_moveto(rel_x - (x / new_w))
-        canvas.yview_moveto(rel_y - (y / new_h))
-
-    def _mousewheel_zoom(self, event):
-        if event.delta > 0:
-            new_scale = min(self._preview_scale * 1.25, 16.0)
+        # compute new scale
+        cur = getattr(self, "_preview_scale", 1.0)
+        if getattr(event, "delta", 0) > 0:
+            new_scale = min(cur * 1.25, 8.0)
         else:
-            new_scale = max(self._preview_scale / 1.25, 0.05)
+            new_scale = max(cur / 1.25, 0.05)
 
-        self._zoom_at_point(event.x, event.y, new_scale)
+        self._preview_scale = new_scale
+
+        # call render (render will read the before_* vars and recenter)
+        self._render_preview_image()
 
     def _update_preview_nav_buttons(self):
         total = len(self.preview_files)
