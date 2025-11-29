@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -157,6 +157,8 @@ class GridMaker(ctk.CTk):
 
         # preview-only state
         self._preview_scale = 1.0
+        self._preview_scale_min = 1.0
+        self._preview_scale_max = 4.0
         self._preview_zoom_target = None  # "center" or "mouse" or None
         self._preview_before_abs = None  # (abs_x_before, abs_y_before)
         self._preview_before_bbox = None  # bbox before zoom
@@ -559,83 +561,42 @@ class GridMaker(ctk.CTk):
 
     def _preview_restyle(self):
         self._preview_scale = 1.0
+        self._update_preview_nav_buttons()
+        self._render_preview_image()
         self._reset_scrollbar()
-        self._render_preview_image()
 
-    def _preview_zoom_in(self, target="center", event=None):
-        self._prev_preview_scale = self._preview_scale
-        # capture before-state for later re-centering
-        try:
-            bbox = self.preview_canvas.bbox("all") or (0, 0, 1, 1)
-        except:
-            bbox = (0, 0, 1, 1)
-        self._preview_before_bbox = bbox
+    def _update_zoom_buttons(self):
+        scale = getattr(self, "_preview_scale", 1.0)
 
-        # determine mouse canvas absolute coords BEFORE zoom
-        if target == "mouse" and (
-            event is not None or (self._preview_mouse_x is not None and self._preview_mouse_y is not None)
-        ):
-            # prefer event coords if passed
-            if event is not None:
-                mx, my = event.x, event.y
-            else:
-                mx, my = self._preview_mouse_x, self._preview_mouse_y
-            # convert label-local mouse coords to canvas absolute coords
-            try:
-                abs_x = self.preview_canvas.canvasx(mx)
-                abs_y = self.preview_canvas.canvasy(my)
-            except:
-                abs_x = (bbox[0] + bbox[2]) / 2
-                abs_y = (bbox[1] + bbox[3]) / 2
+        if scale <= self._preview_scale_min:
+            self.zoom_out_btn.configure(state="disabled")
         else:
-            # center point
-            canvas_w = self.preview_canvas.winfo_width() or 1
-            canvas_h = self.preview_canvas.winfo_height() or 1
-            abs_x = self.preview_canvas.canvasx(canvas_w // 2)
-            abs_y = self.preview_canvas.canvasy(canvas_h // 2)
+            self.zoom_out_btn.configure(state="normal")
 
-        self._preview_before_abs = (abs_x, abs_y)
-        self._preview_zoom_target = target
-
-        # change scale
-        self._preview_scale = min(getattr(self, "_preview_scale", 1.0) * 1.25, 16.0)
-
-        # render (render will perform after-render recenter)
-        self._render_preview_image()
-
-    def _preview_zoom_out(self, target="center", event=None):
-        self._prev_preview_scale = self._preview_scale
-        try:
-            bbox = self.preview_canvas.bbox("all") or (0, 0, 1, 1)
-        except:
-            bbox = (0, 0, 1, 1)
-        self._preview_before_bbox = bbox
-
-        if target == "mouse" and (
-            event is not None or (self._preview_mouse_x is not None and self._preview_mouse_y is not None)
-        ):
-            if event is not None:
-                mx, my = event.x, event.y
-            else:
-                mx, my = self._preview_mouse_x, self._preview_mouse_y
-            try:
-                abs_x = self.preview_canvas.canvasx(mx)
-                abs_y = self.preview_canvas.canvasy(my)
-            except:
-                abs_x = (bbox[0] + bbox[2]) / 2
-                abs_y = (bbox[1] + bbox[3]) / 2
+        if scale >= self._preview_scale_max:
+            self.zoom_in_btn.configure(state="disabled")
         else:
-            canvas_w = self.preview_canvas.winfo_width() or 1
-            canvas_h = self.preview_canvas.winfo_height() or 1
-            abs_x = self.preview_canvas.canvasx(canvas_w // 2)
-            abs_y = self.preview_canvas.canvasy(canvas_h // 2)
+            self.zoom_in_btn.configure(state="normal")
 
-        self._preview_before_abs = (abs_x, abs_y)
+    def _preview_zoom_in(self, target="center"):
+        cur = self._preview_scale
+        if cur >= self._preview_scale_max:
+            return
+
+        self._preview_scale = min(cur * 1.25, self._preview_scale_max)
         self._preview_zoom_target = target
-
-        self._preview_scale = max(getattr(self, "_preview_scale", 1.0) / 1.25, 0.05)
-
         self._render_preview_image()
+        self._update_zoom_buttons()
+
+    def _preview_zoom_out(self, target="center"):
+        cur = self._preview_scale
+        if cur <= self._preview_scale_min:
+            return
+
+        self._preview_scale = max(cur / 1.25, self._preview_scale_min)
+        self._preview_zoom_target = target
+        self._render_preview_image()
+        self._update_zoom_buttons()
 
     def _mousewheel_zoom(self, event):
         """
@@ -676,16 +637,20 @@ class GridMaker(ctk.CTk):
         self._preview_zoom_target = "mouse"
 
         # compute new scale
-        cur = getattr(self, "_preview_scale", 1.0)
-        if getattr(event, "delta", 0) > 0:
-            new_scale = min(cur * 1.25, 8.0)
-        else:
-            new_scale = max(cur / 1.25, 0.05)
+        cur = self._preview_scale
+
+        if event.delta > 0:  # zoom in
+            if cur >= self._preview_scale_max:
+                return  # stop zoom
+            new_scale = min(cur * 1.25, self._preview_scale_max)
+        else:  # zoom out
+            if cur <= self._preview_scale_min:
+                return
+            new_scale = max(cur / 1.25, self._preview_scale_min)
 
         self._preview_scale = new_scale
-
-        # call render (render will read the before_* vars and recenter)
         self._render_preview_image()
+        self._update_zoom_buttons()
 
     def _update_preview_nav_buttons(self):
         total = len(self.preview_files)
@@ -701,6 +666,8 @@ class GridMaker(ctk.CTk):
             self.next_btn.configure(state="disabled")
         else:
             self.next_btn.configure(state="normal")
+
+        self._update_zoom_buttons()
 
     def get_unique_path(self, file_path: str) -> str:
         """
@@ -1920,7 +1887,9 @@ class GridMaker(ctk.CTk):
         )
 
         self.attributes("-disabled", False)
-        self._enable_preview_window()
+        if hasattr(self, "preview_window") and self.preview_window.winfo_exists():
+            self.preview_window.attributes("-disabled", False)
+            self._update_preview_nav_buttons()
 
     def toggle_process(self):
         """
