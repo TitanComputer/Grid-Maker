@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -405,13 +405,11 @@ class GridMaker(ctk.CTk):
         scale = getattr(self, "_preview_scale", 1.0)
 
         # clamp scale to reasonable bounds
-        MIN_SCALE = 0.05
-        MAX_SCALE = 4.0
-        if scale < MIN_SCALE:
-            scale = MIN_SCALE
+        if scale < self._preview_scale_min:
+            scale = self._preview_scale_min
             self._preview_scale = scale
-        if scale > MAX_SCALE:
-            scale = MAX_SCALE
+        if scale > self._preview_scale_max:
+            scale = self._preview_scale_max
             self._preview_scale = scale
 
         # compute target display size
@@ -860,6 +858,57 @@ class GridMaker(ctk.CTk):
         # Image label inside preview_frame
         self.preview_image_label = ctk.CTkLabel(self.preview_frame, text="")
         self.preview_image_label.grid(row=0, column=0, pady=5)
+
+        # =============================================================
+        #   DRAG & DROP PANNING (SMART LOCK)
+        # =============================================================
+
+        def start_pan(event):
+            self.preview_image_label.configure(cursor="fleur")
+
+            # store starting mouse position
+            self._pan_start_x = event.x_root
+            self._pan_start_y = event.y_root
+
+            self.preview_canvas.scan_mark(event.x_root, event.y_root)
+
+        def move_pan(event):
+            # Compute content and view sizes
+            bbox = self.preview_canvas.bbox("all")
+            if not bbox:
+                return
+
+            content_width = bbox[2] - bbox[0]
+            content_height = bbox[3] - bbox[1]
+
+            view_width = self.preview_canvas.winfo_width()
+            view_height = self.preview_canvas.winfo_height()
+
+            # Calculate target x
+            if content_width > view_width:
+                target_x = event.x_root
+            else:
+                target_x = self._pan_start_x
+
+            # Calculate target y
+            if content_height > view_height:
+                target_y = event.y_root
+            else:
+                target_y = self._pan_start_y
+
+            # Perform the drag
+            self.preview_canvas.scan_dragto(target_x, target_y, gain=1)
+
+        def stop_pan(event):
+            self.preview_image_label.configure(cursor="hand2")
+
+        # --- Bindings ---
+        self.preview_image_label.bind("<Enter>", lambda e: self.preview_image_label.configure(cursor="hand2"))
+        self.preview_image_label.bind("<Leave>", lambda e: self.preview_image_label.configure(cursor=""))
+
+        self.preview_image_label.bind("<ButtonPress-1>", start_pan)
+        self.preview_image_label.bind("<B1-Motion>", move_pan)
+        self.preview_image_label.bind("<ButtonRelease-1>", stop_pan)
 
         # Mouse wheel zoom
         # store mouse pos relative to the *canvas* (not label) so we can compute canvasx/canvasy
@@ -1782,8 +1831,8 @@ class GridMaker(ctk.CTk):
 
             # Reset index and re-render first image
             self.preview_index = 0
-            self._render_preview_image()
             self._update_preview_nav_buttons()
+            self._restyle_checker()
 
         self._update_preview_button_state()
 
