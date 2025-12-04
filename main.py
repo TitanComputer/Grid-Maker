@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.5.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -382,6 +382,8 @@ class GridMaker(ctk.CTk):
         # Apply Pixel Art
         if self.settings["pixel_art_enabled"].get():
             img = self._apply_pixel_art(img)
+            rows = self.settings["grid_rows"].get()
+            cols = rows
 
         # --- Skip if grid disabled ---
         if self.settings.get("grid_enabled").get() and rows > 0:
@@ -1012,10 +1014,39 @@ class GridMaker(ctk.CTk):
         except:
             pass
 
+    def _update_grid_controls(self, small_w, small_h):
+        """Calculates and updates grid cell count based on pixel art dimensions and updates UI controls."""
+        if not self.settings["sync_grid_to_pixels"].get():
+            # Only run if sync is enabled
+            return
+
+        # Calculate grid count:
+        # Since the grid must be square (rows=cols), we select the max of the small dimensions
+        # to ensure the grid covers the entire pixelated area without creating non-square cells.
+        new_grid_count = max(small_w, small_h)
+
+        # Clamp the result
+        MIN_CELLS = 0
+        MAX_CELLS = 400
+        new_grid_count = max(MIN_CELLS, min(MAX_CELLS, int(new_grid_count)))
+
+        # Update setting, slider, and label
+        current_value = self.settings["grid_rows"].get()
+        if current_value != new_grid_count:
+            self.settings["grid_rows"].set(new_grid_count)
+            # The slider is disabled when sync is on, but we still update its value
+            self.rows_slider.set(new_grid_count)
+
+            # Update label text using the pre-defined function
+            fmt = getattr(self, "grid_rows_format")
+            lbl = getattr(self, "grid_rows_label")
+            lbl.configure(text=fmt.format(new_grid_count))
+
     def _on_pixler_toggle(self):
-        """Disables/enables all pixel-related UI when toggle is switched."""
+        """Disables/enables all pixel-related UI when toggle is switched, and handles grid sync logic."""
         enabled = self.settings["pixel_art_enabled"].get()
         state = "normal" if enabled else "disabled"
+        grid_enabled = self.settings["grid_enabled"].get()
 
         # Pixel Size Slider
         self.pixel_scale_slider.configure(state=state)
@@ -1029,23 +1060,48 @@ class GridMaker(ctk.CTk):
         # Sharpen Toggle
         self.pixel_sharpen_toggle.configure(state=state)
 
-        # Sync to pixels toggle
-        self.sync_grid_toggle.configure(state=state)
+        # Sync to pixels toggle logic
+        if enabled:
+            # If Pixler is ON: If Grid is also ON, set sync toggle to ON and enable it
+            if grid_enabled:
+                self.settings["sync_grid_to_pixels"].set(True)
+                self.sync_grid_toggle.configure(state="normal")
+            else:
+                # Pixler is ON but Grid is OFF: sync toggle must remain OFF and disabled
+                self.settings["sync_grid_to_pixels"].set(False)
+                self.sync_grid_toggle.configure(state="disabled")
+        else:
+            # If Pixler is OFF: Sync toggle must be OFF and disabled (regardless of grid status)
+            self.settings["sync_grid_to_pixels"].set(False)
+            self.sync_grid_toggle.configure(state="disabled")
+
+        # Update Grid Slider state based on new sync toggle status
+        self._on_sync_grid_toggle()
 
         # Restyle preview
         self._restyle_checker()
 
     def _on_sync_grid_toggle(self):
-        """Enables/disables grid rows slider based on sync-to-pixels toggle."""
+        """Enables/disables grid rows slider based on sync-to-pixels toggle and updates grid count."""
         sync_enabled = self.settings["sync_grid_to_pixels"].get()
-        if sync_enabled:
+        grid_enabled = self.settings["grid_enabled"].get()
+
+        # Check if the grid itself is enabled before changing state
+        if grid_enabled and sync_enabled:
+            # Sync is active and Grid is on: Disable manual grid controls
             self.rows_slider.configure(state="disabled")
             self.minus_btn.configure(state="disabled")
             self.plus_btn.configure(state="disabled")
-        else:
+        elif grid_enabled and not sync_enabled:
+            # Sync is inactive and Grid is on: Enable manual grid controls
             self.rows_slider.configure(state="normal")
             self.minus_btn.configure(state="normal")
             self.plus_btn.configure(state="normal")
+        else:
+            # Grid is off: Keep controls disabled
+            self.rows_slider.configure(state="disabled")
+            self.minus_btn.configure(state="disabled")
+            self.plus_btn.configure(state="disabled")
 
         # Restyle preview
         self._restyle_checker()
@@ -1073,22 +1129,42 @@ class GridMaker(ctk.CTk):
             fg_color=self.settings["grid_number_bg_color"].get() if enabled else "#d3d3d3"
         )
 
-        # Grid rows slider
-        self.rows_slider.configure(state=state)
-
         # Grid thickness slider
         self.grid_thickness_slider.configure(state=state)
-
-        # plus/minus buttons
-        for btn in [self.minus_btn, self.plus_btn]:
-            btn.configure(state=state)
 
         # Enable/disable highlight radio buttons
         for rbtn in self.grid_highlight_rbtns:
             rbtn.configure(state=state)
 
-        # Sync to pixels toggle
-        self.sync_grid_toggle.configure(state=state)
+        # Sync to pixels toggle logic
+        if enabled:
+            # If Grid is ON, sync toggle state depends on Pixel Art state
+            pixler_enabled = self.settings["pixel_art_enabled"].get()
+            sync_toggle_state = "normal" if pixler_enabled else "disabled"
+            # If Grid is ON and Pixler is ON, set sync to True automatically
+            if pixler_enabled:
+                self.settings["sync_grid_to_pixels"].set(True)
+            else:
+                # If Grid is ON and Pixler is OFF, set sync to False automatically (per requirement: shouldn't be able to turn on sync if pixler is off)
+                self.settings["sync_grid_to_pixels"].set(False)
+
+        else:
+            # If Grid is OFF, sync toggle must be OFF and disabled
+            sync_toggle_state = "disabled"
+            self.settings["sync_grid_to_pixels"].set(False)
+
+        self.sync_grid_toggle.configure(state=sync_toggle_state)
+
+        # Grid rows slider and buttons state should be controlled by _on_sync_grid_toggle when grid is ON
+        # If Grid is OFF, they are disabled regardless.
+        if enabled:
+            # Call _on_sync_grid_toggle to set the correct state for rows slider and buttons
+            self._on_sync_grid_toggle()
+        else:
+            # If Grid is OFF, explicitly disable them
+            self.rows_slider.configure(state="disabled")
+            self.minus_btn.configure(state="disabled")
+            self.plus_btn.configure(state="disabled")
 
         # Restyle preview
         self._restyle_checker()
@@ -1120,6 +1196,11 @@ class GridMaker(ctk.CTk):
         width, height = img.size  # now width==target_w, height==target_h
 
         print(width // scale, height // scale)
+
+        # Update grid count based on pixel art dimensions
+        if self.settings["sync_grid_to_pixels"].get():
+            # Calculate and update the grid controls based on the pixel art dimensions
+            self._update_grid_controls(small_w, small_h)
 
         # create small (downscaled) image in RGB for predictable behavior
         small = img.convert("RGB").resize((small_w, small_h), Image.NEAREST)
@@ -1593,7 +1674,7 @@ class GridMaker(ctk.CTk):
 
         # Toggle frame on the right side of the label
         sync_grid_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        sync_grid_frame.grid(row=17, column=0, columnspan=2, padx=(298, 0), pady=5)
+        sync_grid_frame.grid(row=17, column=0, columnspan=2, padx=(298, 0))
 
         sync_grid_toggle_label = ctk.CTkLabel(
             sync_grid_frame, text="Sync Grid to Pixels", font=ctk.CTkFont(weight="bold")
@@ -2324,6 +2405,8 @@ class GridMaker(ctk.CTk):
         # Apply Pixel Art
         if self.settings["pixel_art_enabled"].get():
             img = self._apply_pixel_art(img)
+            rows = self.settings["grid_rows"].get()
+            cols = rows
 
         # --- Skip if grid disabled ---
         if self.settings.get("grid_enabled").get() and rows > 0:
