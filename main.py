@@ -37,6 +37,7 @@ DEFAULT_CONFIG = {
     "pixel_art_palette": "None",
     "pixel_art_dithering": "None",
     "pixel_art_sharpen": False,
+    "sync_grid_to_pixels": True,
 }
 
 # Determine configuration directory based on OS
@@ -147,6 +148,7 @@ class GridMaker(ctk.CTk):
             "pixel_art_palette": ctk.StringVar(value=DEFAULT_CONFIG["pixel_art_palette"]),
             "pixel_art_dithering": ctk.StringVar(value=DEFAULT_CONFIG["pixel_art_dithering"]),
             "pixel_art_sharpen": ctk.BooleanVar(value=DEFAULT_CONFIG["pixel_art_sharpen"]),
+            "sync_grid_to_pixels": ctk.BooleanVar(value=DEFAULT_CONFIG["sync_grid_to_pixels"]),
         }
         # cols no longer has its own slider → always same as rows
         self.settings["grid_cols"] = self.settings["grid_rows"]
@@ -276,6 +278,7 @@ class GridMaker(ctk.CTk):
             "pixel_art_palette": self.settings["pixel_art_palette"].get(),
             "pixel_art_dithering": self.settings["pixel_art_dithering"].get(),
             "pixel_art_sharpen": self.settings["pixel_art_sharpen"].get(),
+            "sync_grid_to_pixels": self.settings["sync_grid_to_pixels"].get(),
         }
 
         try:
@@ -1026,6 +1029,24 @@ class GridMaker(ctk.CTk):
         # Sharpen Toggle
         self.pixel_sharpen_toggle.configure(state=state)
 
+        # Sync to pixels toggle
+        self.sync_grid_toggle.configure(state=state)
+
+        # Restyle preview
+        self._restyle_checker()
+
+    def _on_sync_grid_toggle(self):
+        """Enables/disables grid rows slider based on sync-to-pixels toggle."""
+        sync_enabled = self.settings["sync_grid_to_pixels"].get()
+        if sync_enabled:
+            self.rows_slider.configure(state="disabled")
+            self.minus_btn.configure(state="disabled")
+            self.plus_btn.configure(state="disabled")
+        else:
+            self.rows_slider.configure(state="normal")
+            self.minus_btn.configure(state="normal")
+            self.plus_btn.configure(state="normal")
+
         # Restyle preview
         self._restyle_checker()
 
@@ -1065,6 +1086,9 @@ class GridMaker(ctk.CTk):
         # Enable/disable highlight radio buttons
         for rbtn in self.grid_highlight_rbtns:
             rbtn.configure(state=state)
+
+        # Sync to pixels toggle
+        self.sync_grid_toggle.configure(state=state)
 
         # Restyle preview
         self._restyle_checker()
@@ -1567,6 +1591,25 @@ class GridMaker(ctk.CTk):
             font=ctk.CTkFont(weight="bold"),
         ).grid(row=17, column=0, columnspan=2, sticky="w", padx=20)
 
+        # Toggle frame on the right side of the label
+        sync_grid_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        sync_grid_frame.grid(row=17, column=0, columnspan=2, padx=(298, 0), pady=5)
+
+        sync_grid_toggle_label = ctk.CTkLabel(
+            sync_grid_frame, text="Sync Grid to Pixels", font=ctk.CTkFont(weight="bold")
+        )
+        sync_grid_toggle_label.grid(row=0, column=0, padx=(0, 10), sticky="e")
+
+        self.sync_grid_toggle = ctk.CTkSwitch(
+            sync_grid_frame,
+            text="",
+            variable=self.settings["sync_grid_to_pixels"],
+            onvalue=True,
+            offvalue=False,
+            command=self._on_sync_grid_toggle,
+        )
+        self.sync_grid_toggle.grid(row=0, column=1, sticky="e")
+
         grid_cells_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         grid_cells_frame.grid(row=18, column=0, columnspan=2, sticky="ew", padx=20, pady=(10, 5))
         grid_cells_frame.grid_columnconfigure(1, weight=1)
@@ -1920,6 +1963,10 @@ class GridMaker(ctk.CTk):
 
         # Reset pixel toggle
         self._on_pixler_toggle()  # ensure UI is consistent
+
+        # Reset sync grid toggle
+        self.sync_grid_toggle.configure(state="normal" if self.settings["sync_grid_to_pixels"].get() else "disabled")
+        self._on_sync_grid_toggle()  # ensure UI is consistent
 
         # preview scale (display-only)
         self._preview_scale = 1.0
