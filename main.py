@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.6.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -987,6 +987,9 @@ class GridMaker(ctk.CTk):
         top.after(250, self._render_preview_image)
         self._update_preview_nav_buttons()
 
+        # --- Start periodic file check (Polling) ---
+        self._file_check_job = self.after(5000, self._check_for_new_files)
+
         top.after(200, top.deiconify)
 
     def _restyle_checker(self):
@@ -1906,6 +1909,76 @@ class GridMaker(ctk.CTk):
         return slider
 
     # --- Interaction and Process Control Methods ---
+    def _check_for_new_files(self):
+        """Scans the current folder for file changes (addition or deletion) and updates the preview list."""
+        if not (hasattr(self, "preview_window") and self.preview_window.winfo_exists()):
+            # Stop polling if the preview window is closed
+            if hasattr(self, "_file_check_job"):
+                self.after_cancel(self._file_check_job)
+                del self._file_check_job
+            return
+
+        folder = self.folder_path_var.get()
+        supported = (".png", ".jpg", ".jpeg", ".avif", ".webp")
+
+        # 1. Generate the list of current files in the folder
+        new_preview_files = [
+            os.path.join(folder, f)
+            for f in os.listdir(folder)
+            if os.path.isfile(os.path.join(folder, f)) and f.lower().endswith(supported)
+        ]
+
+        # 2. Get the currently displayed file
+        current_file = self.preview_files[self.preview_index] if self.preview_files else None
+
+        # 3. Check for any change (count change or content change)
+        current_files_set = set(self.preview_files)
+        new_files_set = set(new_preview_files)
+
+        # Check if the list of files has changed
+        if current_files_set != new_files_set:
+
+            # Update the internal list
+            self.preview_files = new_preview_files
+            new_count = len(self.preview_files)
+
+            # 4. Handle the index change and re-render only if the displayed file is affected
+
+            # Check if the previously displayed file still exists in the new list
+            if current_file and current_file in self.preview_files:
+                # The current file exists, find its new index
+                new_index = self.preview_files.index(current_file)
+
+                # Check if the file's position (index) has changed
+                if new_index != self.preview_index:
+                    self.preview_index = new_index
+                    self._render_preview_image()  # Re-render if index changed (should not happen if files are added/deleted at the end)
+
+            elif new_count > 0:
+                # The previously displayed file was deleted, or we had no files and now we do.
+                # Adjust index to the nearest valid one and re-render.
+                self.preview_index = min(self.preview_index, new_count - 1)
+                self.preview_index = max(0, self.preview_index)
+                self._render_preview_image()
+
+            else:
+                # All files deleted
+                self.preview_index = 0
+                # Close the window or display a message (depending on your preference)
+                self.preview_window.destroy()
+                if hasattr(self, "_file_check_job"):
+                    self.after_cancel(self._file_check_job)
+                    del self._file_check_job
+                self._update_preview_button_state()
+                return
+
+            # Update navigation buttons state (critical after file changes)
+            self._update_preview_nav_buttons()
+
+        # 5. Schedule the next check
+        self._file_check_job = self.after(
+            5000, self._check_for_new_files
+        )  # Check every 5 seconds  # Check every 5 seconds
 
     def _browse_folder(self):
         """Opens a dialog to select the input folder and updates the path variable."""
@@ -1951,6 +2024,10 @@ class GridMaker(ctk.CTk):
                 self.center_window()
                 self._update_preview_button_state()
                 messagebox.showwarning("Preview", "No supported images found.")
+                # If preview window closes, cancel the job
+                if hasattr(self, "_file_check_job"):
+                    self.after_cancel(self._file_check_job)
+                    del self._file_check_job
                 return
 
             # Reset index and re-render first image
