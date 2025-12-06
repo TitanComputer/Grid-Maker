@@ -12,7 +12,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.6.0"
+APP_VERSION = "2.6.1"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -822,6 +822,7 @@ class GridMaker(ctk.CTk):
             return
 
         self.preview_index = 0
+        self._preview_scale = 1.0
 
         # =============================================================
         #   SCROLLABLE CANVAS (vertical + horizontal) USING ONLY GRID
@@ -2032,7 +2033,9 @@ class GridMaker(ctk.CTk):
 
             # Reset index and re-render first image
             self.preview_index = 0
+            self._preview_scale = 1.0
             self._update_preview_nav_buttons()
+            self._reset_scrollbar()
             self._restyle_checker()
 
         self._update_preview_button_state()
