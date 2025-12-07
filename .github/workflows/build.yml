@@ -70,6 +70,7 @@ jobs:
       - name: Build with Nuitka + UPX
         shell: bash
         run: |
+          export TEMP_DIR="./standalone_temp_build"
           python -m nuitka \
             --jobs=4 \
             --enable-plugin=upx \
@@ -88,6 +89,7 @@ jobs:
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
+            --onefile-tempdir=$TEMP_DIR \
             --output-filename=Grid-Maker \
             --company-name="Titan Computer" \
             --product-name="Grid Maker" \
@@ -97,6 +99,13 @@ jobs:
             --copyright="Copyright (c) ${{ env.YEAR }} Titan Computer. All rights reserved." \
             --trademarks="Grid Maker is a trademark of Titan Computer." \
             main.py
+
+      - name: Zip Standalone build for artifact
+        shell: powershell
+        run: |
+          $ZipFileName = "Grid-Maker-v${{ env.version }}.zip"
+          Compress-Archive -Path .\standalone_temp_build\* -DestinationPath $ZipFileName
+          Write-Host "Created $ZipFileName"
 
       # -------------------------
       # 🔒 SELF SIGN CERT HERE
@@ -136,12 +145,13 @@ jobs:
           & "$($signtool.FullName)" sign /f "signcert.pfx" /p "P@ssw0rd123!" `
             /tr "http://timestamp.digicert.com" /td sha256 /fd sha256 "Grid-Maker.exe"
 
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Grid-Maker
-          path: Grid-Maker.exe
+          name: Grid-Maker-Artifacts
+          path: |
+            Grid-Maker.exe
+            Grid-Maker-v${{ env.version }}.zip
 
       - name: Create Release
         id: create_release
