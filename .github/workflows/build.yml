@@ -102,7 +102,7 @@ jobs:
         shell: powershell
         run: |
           $ZipFileName = "Grid-Maker-v${{ env.version }}.zip"
-          $SourceDir = ".\main.build"
+          $SourceDir = ".\main.onefile-build"
           if (Test-Path $SourceDir) {
             Compress-Archive -Path "$SourceDir\*" -DestinationPath $ZipFileName
             Write-Host "Created $ZipFileName"
