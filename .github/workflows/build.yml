@@ -97,12 +97,27 @@ jobs:
             --copyright="Copyright (c) ${{ env.YEAR }} Titan Computer. All rights reserved." \
             --trademarks="Grid Maker is a trademark of Titan Computer." \
             main.py
-
+            
+      - name: List Directories and Contents
+        shell: powershell
+        run: |
+          Write-Host "--- Listing Current Directory Contents ---"
+          Get-ChildItem -Force -Depth 1 | Select-Object FullName, Name, Mode, LastWriteTime
+          Write-Host "----------------------------------------"
+          $PossibleDirs = ".\main.dist", ".\main.build", "$env:TEMP\Grid-Maker.*.dist", "$env:TEMP\onefile_temp"
+          foreach ($Dir in $PossibleDirs) {
+            if (Test-Path $Dir) {
+              Write-Host "--- Listing contents of: $Dir ---"
+              Get-ChildItem -Path $Dir | Select-Object Name, Length, LastWriteTime
+              Write-Host "Total Items: $((Get-ChildItem -Path $Dir).Count)"
+              Write-Host "------------------------------------------------"
+            }
+          }
       - name: Zip Standalone build for artifact
         shell: powershell
         run: |
           $ZipFileName = "Grid-Maker-v${{ env.version }}.zip"
-          $SourceDir = ".\main.onefile-build"
+          $SourceDir = ".\main*"
           if (Test-Path $SourceDir) {
             Compress-Archive -Path "$SourceDir\*" -DestinationPath $ZipFileName
             Write-Host "Created $ZipFileName"
