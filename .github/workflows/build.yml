@@ -70,7 +70,6 @@ jobs:
       - name: Build with Nuitka + UPX
         shell: bash
         run: |
-          export TEMP_DIR="./standalone_temp_build"
           python -m nuitka \
             --jobs=4 \
             --enable-plugin=upx \
@@ -89,7 +88,6 @@ jobs:
             --standalone \
             --msvc=latest \
             --assume-yes-for-downloads \
-            --onefile-tempdir=$TEMP_DIR \
             --output-filename=Grid-Maker \
             --company-name="Titan Computer" \
             --product-name="Grid Maker" \
@@ -104,8 +102,13 @@ jobs:
         shell: powershell
         run: |
           $ZipFileName = "Grid-Maker-v${{ env.version }}.zip"
-          Compress-Archive -Path .\standalone_temp_build\* -DestinationPath $ZipFileName
-          Write-Host "Created $ZipFileName"
+          $SourceDir = ".\main.dist"
+          if (Test-Path $SourceDir) {
+            Compress-Archive -Path "$SourceDir\*" -DestinationPath $ZipFileName
+            Write-Host "Created $ZipFileName"
+          } else {
+            Write-Error "Source directory '$SourceDir' not found!"
+          }
 
       # -------------------------
       # 🔒 SELF SIGN CERT HERE
