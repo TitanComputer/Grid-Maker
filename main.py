@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import json
 import math
@@ -12,7 +13,7 @@ import customtkinter as ctk
 from customtkinter import filedialog, CTkImage
 from idlelib.tooltip import Hovertip
 
-APP_VERSION = "2.6.1"
+APP_VERSION = "2.7.0"
 APP_NAME = "Grid Maker"
 CONFIG_FILENAME = "config.json"
 
@@ -727,7 +728,13 @@ class GridMaker(ctk.CTk):
                 else:
                     self.last_render.save(save_path, format=save_format)
 
-                messagebox.showinfo("Saved", f"Image saved successfully:\n{save_path}", parent=self.preview_window)
+                result = messagebox.askyesno(
+                    "Saved", f"Image saved successfully:\n{save_path}\n\nOpen the folder?", parent=self.preview_window
+                )
+
+                if result:
+                    folder = os.path.dirname(save_path)
+                    subprocess.Popen(f'explorer "{folder}"')
             else:
                 messagebox.showerror("Error", "Rendered image not found.", parent=self.preview_window)
 
@@ -2334,17 +2341,25 @@ class GridMaker(ctk.CTk):
         if success:
             # Ensure progress bar reaches 1.0 and label says 100%
             self.after(0, lambda: [self.progress_bar.set(1.0), self.progress_text_var.set("100%")])
-            # Show success message as requested
-            self.after(
-                0,
-                lambda: (
-                    messagebox.showinfo(
-                        "Success",
-                        f"All images processed successfully!\n\n{self.total_files} files were saved to:\n{os.path.normpath(os.path.join(self.folder_path_var.get(), 'output'))}",
-                    ),
-                    self._enable_preview_window(),
-                ),
-            )
+
+            def show_success_and_option():
+                output_folder = os.path.normpath(os.path.join(self.folder_path_var.get(), "output"))
+
+                result = messagebox.askyesno(
+                    "Success",
+                    f"All images processed successfully!\n\n"
+                    f"{self.total_files} files were saved to:\n{output_folder}\n\n"
+                    f"Open the folder?",
+                    parent=self,
+                )
+
+                if result:
+                    subprocess.Popen(f'explorer "{output_folder}"')
+
+                self._enable_preview_window()
+
+            self.after(0, show_success_and_option)
+
         else:
             # Ensure progress bar remains at current state or 0 if started and immediately stopped
             if self.progress_bar.get() < 1.0:
