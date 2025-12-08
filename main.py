@@ -729,7 +729,7 @@ class GridMaker(ctk.CTk):
                     self.last_render.save(save_path, format=save_format)
 
                 result = messagebox.askyesno(
-                    "Saved", f"Image saved successfully:\n{save_path}\n\nOpen the folder?", parent=self.preview_window
+                    "Saved", f"Image saved successfully:\n\n{save_path}\n\nOpen the folder?", parent=self.preview_window
                 )
 
                 if result:
