@@ -2,6 +2,8 @@
 
 Grid Maker is a desktop tool for batch-processing images and generating customizable grid overlays.  
 It supports PNG, JPG, JPEG, AVIF, and WEBP formats, and allows trimming, zooming, recoloring, and grid configuration with precision.  
+It also includes an advanced **Pixel Art mode**, which can downscale images into pixel-sized blocks, apply color palettes (16/32/64/Game Boy), use optional dithering filters, and then upscale them cleanly.  
+This mode is especially useful for converting photos or patterns into simplified pixel-art templates and can automatically sync the grid size with the pixel dimensions for perfectly aligned results.
 The built-in Preview Window lets you inspect each image with the exact final settings before exporting.
 
 This tool is commonly used for creating **knitting, crochet, and cross-stitch patterns**, where accurately gridded images are required for pattern design.
@@ -16,10 +18,17 @@ Built with Python, CustomTkinter, and Pillow, the tool provides a modern UI, liv
 - Trim horizontal and vertical padding  
 - Resize images using a zoom factor (0.1× – 10×)  
 - Apply customizable grid lines with adjustable:
-  - Row count
-  - Column count
+  - Row/Column count
+  - Grid thickness
   - Grid color  
+  - Grid highlight
 - High-quality rendering using LANCZOS resampling
+
+### 🎨 Pixel Art details
+- Pixel Size (scale): downscale factor. Image gets reduced to (orig/scale) then upscaled with nearest-neighbor.
+- Palette options: None, 16, 32, 64, Game Boy (4 colors).
+- Dithering: None | Floyd (Floyd–Steinberg) | Ordered.
+- If "Sync grid to pixels" is enabled, the grid rows/cols are set automatically to match the pixel-art dimensions.
 
 ### 📁 Batch Processing
 - Automatically processes all supported images in the selected folder  
@@ -33,10 +42,13 @@ Built with Python, CustomTkinter, and Pillow, the tool provides a modern UI, liv
 - Non-modal preview window positioned beside the main window  
 - Displays the final rendering exactly as it will be saved  
 - Vertical + horizontal scrollbars for large images  
+- Mouse wheel zoom preserves the point under the cursor (mouse-centered zoom).  
+- Mouse drag pan allows for quick navigation (panning is limited to the preview window).
 - Navigation and action buttons:
   - **Previous**
   - **Next**
   - **Re-Style**
+  - **Zoom In/Out**
   - **Save**
 - Automatically prevents opening multiple preview windows  
 
@@ -51,6 +63,12 @@ Built with Python, CustomTkinter, and Pillow, the tool provides a modern UI, liv
 - Prevents running multiple app instances using a lock file  
 - Automatically recovers from stale locks after 60 seconds 
 
+### 🐞 Troubleshooting
+- If the app says "already running": the lock file may exist. The app removes stale locks older than 60s automatically, or manually delete the lock file in the app data folder.
+- AVIF files not loading: install `pillow-avif-plugin`.
+- If preview shows "No supported images found": ensure filenames end with .png/.jpg/.jpeg/.avif/.webp (case-insensitive) and folder path is correct.
+- If output filenames collide, the app will append _01, _02, ... (safe behavior).
+
 ---
 
 ## 🚀 Usage Guide
@@ -62,6 +80,8 @@ An `output` directory will be created automatically inside the same folder.
 ### 2. Adjust Grid and Image Settings
 - Padding trim  
 - Zoom factor  
+- Pixel art mode
+- Grid thickness
 - Grid color  
 - Grid rows/columns  
 
@@ -69,7 +89,7 @@ All settings update in real-time.
 
 ### 3. Preview (Optional)
 Click **Preview Grid** to:
-- View images with the applied grid  
+- View images with the applied pixel art and grid  
 - Navigate between images  
 - Save the preview result manually  
 
@@ -80,6 +100,7 @@ All processed images will be saved into `/output/`.
 A message box will show:
 - Number of processed files  
 - Output folder path  
+- Ask to open the output folder
 
 ---
 
@@ -138,6 +159,7 @@ grid_maker/
 ├── README.md                   # Project documentation
 ├── assets/
 │   ├── icon.png                # Project icon
+│   ├── icon.ico                # Project icon for Windows
 │   ├── heart.png               # Heart Logo
 │   └── donate.png              # Donate Picture
 └── requirements.txt            # Python dependencies
@@ -155,7 +177,7 @@ The executable was built using [`Nuitka`](https://nuitka.net/) and [`UPX`](https
 You can build the standalone executable using the following command:
 
 ```bash
-.\venv\Scripts\python.exe -m nuitka --jobs=4 --enable-plugin=upx --upx-binary="YOUR PATH\upx.exe" --enable-plugin=multiprocessing --lto=yes --enable-plugin=tk-inter --windows-console-mode=disable --follow-imports --windows-icon-from-ico="assets/icon.png" --include-data-dir=assets=assets --include-package=pillow_avif --python-flag=no_site,no_asserts,no_docstrings --onefile --onefile-no-compression --standalone --msvc=latest --output-filename=Grid-Maker main.py
+.\venv\Scripts\python.exe -m nuitka --jobs=4 --enable-plugin=upx --upx-binary="YOUR PATH\upx.exe" --enable-plugin=multiprocessing --lto=yes --enable-plugin=tk-inter --windows-console-mode=disable --follow-imports --windows-icon-from-ico="assets/icon.png" --include-data-dir=assets=assets --include-package=pillow_avif --python-flag=no_site,no_asserts,no_docstrings,static_hashes --onefile --onefile-no-compression --standalone --msvc=latest --assume-yes-for-downloads --output-filename=Grid-Maker main.py
 ```
 
 ## 🚀 CI/CD
