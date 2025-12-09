@@ -119,7 +119,7 @@ Grid Maker is especially useful for:
 
 ## 🖼️ Screenshots
 
-<img width="1205" height="782" alt="Untitled5" src="https://github.com/user-attachments/assets/6e833922-ee0e-42f8-bfec-d03f96254bfe" />
+<img width="1205" height="922" alt="Untitled5" src="https://github.com/user-attachments/assets/c1c48e80-55ac-4dbc-aa50-34ff7fe91584" />
 
 
 ## 📥 Download
